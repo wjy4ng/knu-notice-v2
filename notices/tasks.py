@@ -53,7 +53,16 @@ def crawl_all_notices():
     return total_new_notices
 
 def get_chrome_driver():
-    """Chrome WebDriver 설정 (Render.com 환경 지원)"""
+    """Chrome WebDriver 설정 (Render.com 환경에서는 크롤링 비활성화)"""
+    # 환경 확인
+    import os
+    is_render = os.getenv('RENDER') is not None
+    
+    if is_render:
+        # Render.com 환경에서는 Chrome이 설치되지 않으므로 크롤링 비활성화
+        logger.warning("크롤링이 Render.com 환경에서 비활성화됨. GitHub Actions를 사용하세요.")
+        raise WebDriverException("크롤링은 GitHub Actions에서만 실행됩니다.")
+    
     chrome_options = Options()
     
     # 기본 보안 설정
@@ -72,27 +81,12 @@ def get_chrome_driver():
     chrome_options.add_argument('--disable-backgrounding-occluded-windows')
     chrome_options.add_argument('--disable-renderer-backgrounding')
     
-    # Render.com 환경 최적화
-    chrome_options.add_argument('--remote-debugging-port=9222')
-    chrome_options.add_argument('--disable-background-networking')
-    chrome_options.add_argument('--disable-background-updates')
-    chrome_options.add_argument('--disable-component-extensions-with-background-pages')
-    chrome_options.add_argument('--disable-default-apps')
-    chrome_options.add_argument('--disable-sync')
-    chrome_options.add_argument('--metrics-recording-only')
-    chrome_options.add_argument('--no-first-run')
-    chrome_options.add_argument('--safebrowsing-disable-auto-update')
-    chrome_options.add_argument('--use-mock-keychain')
-    
     # 사용자 에이전트 (공주대학교 크롤링 명시)
     chrome_options.add_argument('--user-agent=KNU-Notice-Crawler/1.0 (Educational Purpose)')
     
-    # 환경별 설정
-    import os
-    is_render = os.getenv('RENDER') is not None
     is_debug = os.getenv('DEBUG', 'False').lower() == 'true'
     
-    if is_debug and not is_render:
+    if is_debug:
         # 로컬 개발환경에서만 SSL 무시
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--ignore-ssl-errors')
@@ -101,31 +95,25 @@ def get_chrome_driver():
     
     chrome_options.add_argument('--disable-features=VizDisplayCompositor')
     
-    # Chrome 바이너리 경로 설정
-    if is_render:
-        # Render.com 환경
-        chrome_options.binary_location = '/usr/bin/google-chrome'
-        logger.info("Using Chrome binary for Render.com: /usr/bin/google-chrome")
+    # 로컬 환경 (macOS)
+    chrome_paths = [
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser'
+    ]
+    
+    chrome_binary = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_binary = path
+            break
+    
+    if chrome_binary:
+        chrome_options.binary_location = chrome_binary
+        logger.info(f"Chrome binary found: {chrome_binary}")
     else:
-        # 로컬 환경 (macOS)
-        chrome_paths = [
-            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-            '/Applications/Chromium.app/Contents/MacOS/Chromium',
-            '/usr/bin/google-chrome',
-            '/usr/bin/chromium-browser'
-        ]
-        
-        chrome_binary = None
-        for path in chrome_paths:
-            if os.path.exists(path):
-                chrome_binary = path
-                break
-        
-        if chrome_binary:
-            chrome_options.binary_location = chrome_binary
-            logger.info(f"Chrome binary found: {chrome_binary}")
-        else:
-            logger.warning("Chrome binary not found, using system default")
+        logger.warning("Chrome binary not found, using system default")
     
     try:
         service = Service(ChromeDriverManager().install())

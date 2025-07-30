@@ -2,16 +2,8 @@
 # Exit on error
 set -o errexit
 
-# Install Chrome for Selenium (Render.com specific)
-if [ -n "$RENDER" ]; then
-    echo "Installing Chrome for Render.com..."
-    apt-get update
-    apt-get install -y wget gnupg
-    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
-    echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list
-    apt-get update
-    apt-get install -y google-chrome-stable
-fi
+# Note: Chrome installation removed due to Render.com limitations
+# Crawling will be handled by GitHub Actions instead
 
 # Install Python dependencies
 uv sync

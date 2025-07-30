@@ -17,6 +17,14 @@ class ManualCrawlView(View):
     def post(self, request):
         """크롤링을 수동으로 실행"""
         try:
+            # Render.com 환경에서는 크롤링 비활성화
+            if os.getenv('RENDER'):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Crawling is disabled on Render.com. Use GitHub Actions for automated crawling.',
+                    'message': 'GitHub Actions를 사용하여 크롤링하세요.'
+                }, status=400)
+            
             # 보안을 위한 간단한 토큰 확인
             auth_token = request.headers.get('Authorization')
             expected_token = os.getenv('CRAWL_AUTH_TOKEN', 'knu-crawl-2025')
