@@ -28,6 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install uv
         uv sync
+        pip install requests certifi  # requests 및 certifi 설치
         
     - name: Run crawling
       run: |

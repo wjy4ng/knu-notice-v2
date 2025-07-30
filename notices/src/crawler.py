@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
 import json
+import ssl
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,14 @@ def crawl_notices(board_name=None):
         
         if board_url:
             try:
-                response = requests.get(board_url)
+                # SSL 프로토콜 버전 명시적으로 지정
+                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                context.minimum_version = ssl.TLSVersion.TLSv1_2  # TLS 1.2로 명시적 지정
+                
+                session = requests.Session()
+                session.mount('https://', SSLAdapter(context))
+                
+                response = session.get(board_url, verify=True)
                 response.raise_for_status()  # HTTP 오류 발생 시 예외 발생
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
@@ -81,7 +89,22 @@ def crawl_notices(board_name=None):
             
             except requests.exceptions.RequestException as e:
                 logger.error(f"Error crawling board {board_url}: {e}")
+            except Exception as e:
+                logger.error(f"알 수 없는 오류 발생: {e}")
         else:
             logger.warning(f"Board {board_name} not found in urls.json")
     
     return all_notices
+
+# requests Session에 SSL Context 적용을 위한 Adapter 클래스
+class SSLAdapter(requests.adapters.HTTPAdapter):
+    def __init__(self, ssl_context=None, **kwargs):
+        self.ssl_context = ssl_context
+        super().__init__(**kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False):
+        self.poolmanager = requests.packages.urllib3.PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            ssl_context=self.ssl_context)
