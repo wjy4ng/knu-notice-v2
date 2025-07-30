@@ -2,10 +2,8 @@ name: Periodic Crawling
 
 on:
   schedule:
-    # 5분마다 실행 (테스트용)
-    - cron: '*/5 * * * *'
-  push:
-    branches: [ main ]  # main 브랜치에 푸시할 때마다 실행
+    # 매시간 0분에 실행 (UTC 기준)
+    - cron: '0 * * * *'
   workflow_dispatch: # 수동 실행 가능
 
 jobs:

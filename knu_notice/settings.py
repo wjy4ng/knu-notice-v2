@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-github-actions-fallback-key')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-local-development-key-only')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
@@ -30,7 +30,9 @@ DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 # GitHub Actions 환경에서는 디버그 모드로 실행
 if os.environ.get('GITHUB_ACTIONS'):
     DEBUG = True
-    SECRET_KEY = 'django-insecure-github-actions-key-for-testing'
+    # GitHub Actions에서는 환경변수에서 가져오거나 임시 키 사용
+    if not os.environ.get('DJANGO_SECRET_KEY'):
+        SECRET_KEY = 'django-insecure-github-actions-temporary-key-do-not-use-in-production'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com').split(',')
 
@@ -149,19 +151,38 @@ LOGGING = {
             'style': '{',
         },
     },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'require_debug_true': {
+            '()': 'django.utils.log.RequireDebugTrue',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
+            'filters': ['require_debug_true'],
+        },
+        'console_prod': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'filters': ['require_debug_false'],
         },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'console_prod'],
         'level': 'INFO' if not DEBUG else 'DEBUG',
     },
     'loggers': {
         'notices': {
-            'handlers': ['console'],
+            'handlers': ['console', 'console_prod'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console_prod'],
             'level': 'INFO',
             'propagate': False,
         },
@@ -178,3 +199,11 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    # 추가 보안 헤더
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+    X_FRAME_OPTIONS = 'DENY'
+    # CSRF 설정
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_EXPIRE_AT_BROWSER_CLOSE = True

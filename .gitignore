@@ -61,6 +61,14 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
+# Security sensitive files
+.env
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
 # Flask stuff:
 instance/
 .webassets-cache

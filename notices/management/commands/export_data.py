@@ -10,7 +10,7 @@ class Command(BaseCommand):
         """크롤링된 데이터를 JSON으로 내보내기"""
         
                 # 최신 200개 공지사항 가져오기
-        notices = Notice.objects.select_related('category', 'board').all().order_by('-crawled_at')[:200]
+        notices = Notice.objects.select_related('board', 'board__category').all().order_by('-crawled_at')[:200]
         
         data = {
             'notices': [],

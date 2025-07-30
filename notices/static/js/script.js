@@ -73,7 +73,7 @@ document.addEventListener('mouseover', async (event) => {
       const selectedDateString = selectedDateInput.value; // 선택된 날짜 문자열 가져오기
 
       // Django API 호출로 미리보기 데이터 가져오기
-      const response = await fetch(`/api/notice-preview/?url=${encodeURIComponent(boardUrl)}&date=${selectedDateString}`);
+      const response = await fetch(`/api/v1/notice-preview/?url=${encodeURIComponent(boardUrl)}&date=${selectedDateString}`);
       if (!response.ok) {
         throw new Error('API 호출 실패');
       }
@@ -133,7 +133,7 @@ async function renderNoticeList(dateString = null) {
     const dateStr = formatDate(filterDate);
     
     // Django API 호출로 모든 데이터 한번에 가져오기
-    const response = await fetch(`/api/notice-counts/?date=${dateStr}`);
+    const response = await fetch(`/api/v1/notice-counts/?date=${dateStr}`);
     
     if (!response.ok) {
       throw new Error('API 호출 실패');

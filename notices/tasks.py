@@ -18,26 +18,40 @@ logger = logging.getLogger(__name__)
 def crawl_all_notices():
     """Main task to crawl notices from all active boards"""
     from django.utils import timezone
+    from django.db import transaction
     
     start_time = timezone.now()
     logger.info(f"=== 크롤링 시작: {start_time} ===")
     
+    # 초기 데이터 설정
+    try:
+        setup_initial_data()
+    except Exception as e:
+        logger.error(f"Failed to setup initial data: {str(e)}")
+        return 0
+    
     boards = NoticeBoard.objects.filter(is_active=True)
     total_new_notices = 0
+    failed_boards = []
     
     for board in boards:
         try:
-            new_count = crawl_board_notices(board)
-            total_new_notices += new_count
-            logger.info(f"{board.name}: {new_count} new notices added")
+            with transaction.atomic():  # 각 게시판별로 트랜잭션 분리
+                new_count = crawl_board_notices(board)
+                total_new_notices += new_count
+                logger.info(f"{board.name}: {new_count}개 새 공지사항 추가")
         except Exception as e:
             logger.error(f"Failed to crawl {board.name}: {str(e)}")
+            failed_boards.append(board.name)
     
     end_time = timezone.now()
     duration = (end_time - start_time).total_seconds()
     
     logger.info(f"=== 크롤링 완료: {end_time} (소요시간: {duration:.1f}초) ===")
     logger.info(f"총 {total_new_notices}개 새 공지사항 수집")
+    
+    if failed_boards:
+        logger.warning(f"실패한 게시판들: {', '.join(failed_boards)}")
     
     return total_new_notices
 
@@ -104,8 +118,8 @@ def crawl_board_notices(board, days_back=7):
     new_notices_count = 0
     page = 1
     cutoff_date = timezone.now().date() - timedelta(days=days_back)
+    
     driver = None
-
     try:
         driver = get_chrome_driver()
         
@@ -114,94 +128,135 @@ def crawl_board_notices(board, days_back=7):
             
             try:
                 logger.info(f"Crawling {board.name} page {page}: {page_url}")
-                
-                import time
-                time.sleep(3)  # 서버 부하 최소화를 위한 대기시간 증가
-                
                 driver.get(page_url)
                 
+                # 페이지 로딩 대기
                 WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "table"))
+                    EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
                 
-                html_source = driver.page_source
-                soup = BeautifulSoup(html_source, 'html.parser')
+                # 공지사항 목록 추출
+                notices = extract_notices_from_page(driver, board, cutoff_date)
                 
-                notice_rows = soup.select('tr:not(.notice)')
-                
-                if not notice_rows:
-                    logger.info(f"{board.name} page {page}: No notices found")
+                if not notices:
+                    logger.info(f"No more notices found on page {page}, stopping crawl")
                     break
                 
-                stop_crawling = False
-                processed_count = 0
+                # 새로운 공지사항만 저장
+                page_new_count = 0
+                for notice_data in notices:
+                    if save_notice_if_new(notice_data, board):
+                        page_new_count += 1
                 
-                for index, row in enumerate(notice_rows):
-                    date_cell = row.select_one('.td-date')
-                    title_element = row.select_one('td a')
-                    
-                    if not date_cell or not title_element:
-                        continue
-                    
-                    date_str = date_cell.get_text(strip=True).replace('.', '-')
-                    try:
-                        notice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-                    except ValueError:
-                        logger.warning(f"Date parsing failed: {date_str}")
-                        continue
-                    
-                    if notice_date < cutoff_date:
-                        stop_crawling = True
-                        break
-                    
-                    title = title_element.get_text(strip=True)
-                    url = title_element.get('href', '')
-                    
-                    if url.startswith('/'):
-                        url = 'https://www.kongju.ac.kr' + url
-                    
-                    # 페이지와 행 위치를 기반으로 표시 순서 계산 (작을수록 최신)
-                    display_order = (page - 1) * 100 + index
-                    
-                    notice, created = Notice.objects.get_or_create(
-                        board=board,
-                        url=url,
-                        defaults={
-                            'title': title,
-                            'published_date': notice_date,
-                            'author': '',
-                            'view_count': 0,
-                            'display_order': display_order,
-                        }
-                    )
-                    
-                    if created:
-                        new_notices_count += 1
-                        logger.info(f"New notice saved: {title[:50]}...")
-                    
-                    processed_count += 1
+                new_notices_count += page_new_count
+                logger.info(f"Page {page}: {page_new_count} new notices saved")
                 
-                logger.info(f"{board.name} page {page}: {processed_count} processed, {new_notices_count} new")
-                
-                if stop_crawling:
+                # 날짜 기준 중단 조건
+                if notices and all(notice['date'] < cutoff_date for notice in notices):
+                    logger.info(f"Reached cutoff date ({cutoff_date}), stopping crawl")
                     break
-                    
+                
                 page += 1
                 
             except TimeoutException:
-                logger.error(f"{board.name} page {page}: Page loading timeout")
+                logger.warning(f"Timeout loading page {page} for {board.name}")
                 break
             except Exception as e:
-                logger.error(f"Error processing {board.name} page {page}: {str(e)}")
+                logger.error(f"Error crawling page {page} for {board.name}: {str(e)}")
                 break
                 
     except Exception as e:
-        logger.error(f"Critical error in crawl_board_notices for {board.name}: {str(e)}")
+        logger.error(f"Failed to initialize driver for {board.name}: {str(e)}")
+        raise
     finally:
+        # 드라이버 정리
         if driver:
-            driver.quit()
+            try:
+                driver.quit()
+                logger.debug(f"WebDriver closed for {board.name}")
+            except Exception as e:
+                logger.warning(f"Error closing WebDriver: {str(e)}")
     
     return new_notices_count
+
+def extract_notices_from_page(driver, board, cutoff_date):
+    """페이지에서 공지사항 목록을 추출"""
+    import time
+    time.sleep(3)  # 서버 부하 최소화를 위한 대기시간
+    
+    try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "table"))
+        )
+        
+        html_source = driver.page_source
+        soup = BeautifulSoup(html_source, 'html.parser')
+        
+        notice_rows = soup.select('tr:not(.notice)')
+        
+        if not notice_rows:
+            return []
+        
+        notices = []
+        for index, row in enumerate(notice_rows):
+            date_cell = row.select_one('.td-date')
+            title_element = row.select_one('td a')
+            
+            if not date_cell or not title_element:
+                continue
+            
+            date_str = date_cell.get_text(strip=True).replace('.', '-')
+            try:
+                notice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                logger.warning(f"Date parsing failed: {date_str}")
+                continue
+            
+            title = title_element.get_text(strip=True)
+            url = title_element.get('href', '')
+            
+            if url.startswith('/'):
+                url = 'https://www.kongju.ac.kr' + url
+            
+            notices.append({
+                'title': title,
+                'url': url,
+                'date': notice_date,
+                'index': index
+            })
+        
+        return notices
+        
+    except Exception as e:
+        logger.error(f"Error extracting notices from page: {str(e)}")
+        return []
+
+def save_notice_if_new(notice_data, board):
+    """새로운 공지사항인 경우에만 저장"""
+    try:
+        # 페이지와 행 위치를 기반으로 표시 순서 계산 (작을수록 최신)
+        display_order = notice_data['index']
+        
+        notice, created = Notice.objects.get_or_create(
+            board=board,
+            url=notice_data['url'],
+            defaults={
+                'title': notice_data['title'],
+                'published_date': notice_data['date'],
+                'author': '',
+                'view_count': 0,
+                'display_order': display_order,
+            }
+        )
+        
+        if created:
+            logger.info(f"New notice saved: {notice_data['title'][:50]}...")
+            return True
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error saving notice: {str(e)}")
+        return False
 
 def setup_initial_data():
     """Setup initial category and board data"""
