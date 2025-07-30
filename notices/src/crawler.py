@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
-from notices.src.tasks import get_board_url  # tasks.py에서 URL 가져오는 함수 import
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +14,18 @@ def crawl_notices(board_name=None):
     
     all_notices = []
     
+    # URL 정보 파일 읽어오기
+    with open('notices/src/urls.json', 'r', encoding='utf-8') as f:
+        urls = json.load(f)
+    
     # 특정 게시판만 크롤링할 경우
     if board_name:
-        # tasks.py에서 게시판 URL 가져오기
-        board_url = get_board_url(board_name)
+        # 게시판 URL 가져오기
+        board_url = None
+        for category, boards in urls.items():
+            if board_name in boards:
+                board_url = boards[board_name]
+                break
         
         if board_url:
             try:
@@ -74,6 +82,6 @@ def crawl_notices(board_name=None):
             except requests.exceptions.RequestException as e:
                 logger.error(f"Error crawling board {board_url}: {e}")
         else:
-            logger.warning(f"Board {board_name} not found in CATEGORIES")
+            logger.warning(f"Board {board_name} not found in urls.json")
     
     return all_notices

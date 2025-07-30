@@ -1,0 +1,17 @@
+{
+    "공지사항": {
+        "학생소식": "https://www.kongju.ac.kr/KNU/16909/subview.do",
+        "행정소식": "https://www.kongju.ac.kr/KNU/16910/subview.do",
+        "행사안내": "https://www.kongju.ac.kr/KNU/16911/subview.do",
+        "채용소식": "https://www.kongju.ac.kr/KNU/16917/subview.do"
+    },
+    "곰나루광장": {
+        "열린광장": "https://www.kongju.ac.kr/KNU/16921/subview.do",
+        "신문방송사": "https://www.kongju.ac.kr/KNU/16922/subview.do",
+        "스터디/모임": "https://www.kongju.ac.kr/KNU/16923/subview.do",
+        "분실물센터": "https://www.kongju.ac.kr/KNU/16924/subview.do",
+        "사고팔고": "https://www.kongju.ac.kr/KNU/16925/subview.do",
+        "자취하숙": "https://www.kongju.ac.kr/KNU/16926/subview.do",
+        "아르바이트": "https://www.kongju.ac.kr/KNU/16927/subview.do"
+    }
+}

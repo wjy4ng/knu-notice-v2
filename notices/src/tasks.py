@@ -3,93 +3,31 @@ from django.utils import timezone
 from notices.models import Notice, NoticeBoard, NoticeCategory
 from notices.src.crawler import crawl_notices
 import logging
+import json
 
 logger = logging.getLogger(__name__)
-
-def get_board_url(board_name):
-    """
-    게시판 이름으로 게시판 URL을 반환하는 함수
-    """
-    for category in CATEGORIES:
-        for board in category['boards']:
-            if board['name'] == board_name:
-                return board['url']
-    return None
 
 def setup_initial_data():
     """
     초기 데이터 설정: NoticeCategory, NoticeBoard
     """
-    CATEGORIES = [
-        {
-            "name": "공지사항",
-            "boards": [
-                {
-                    "name": "학생소식",
-                    "url": "https://www.kongju.ac.kr/KNU/16909/subview.do",
-                },
-                {
-                    "name": "행정소식",
-                    "url": "https://www.kongju.ac.kr/KNU/16910/subview.do",
-                },
-                {
-                    "name": "행사안내",
-                    "url": "https://www.kongju.ac.kr/KNU/16911/subview.do",
-                },
-                {
-                    "name": "채용소식",
-                    "url": "https://www.kongju.ac.kr/KNU/16917/subview.do",
-                },
-            ],
-        },
-        {
-            "name": "곰나루광장",
-            "boards": [
-                {
-                    "name": "열린광장",
-                    "url": "https://www.kongju.ac.kr/KNU/16921/subview.do",
-                },
-                {
-                    "name": "신문방송사",
-                    "url": "https://www.kongju.ac.kr/KNU/16922/subview.do",
-                },
-                {
-                    "name": "스터디/모임",
-                    "url": "https://www.kongju.ac.kr/KNU/16923/subview.do",
-                },
-                {
-                    "name": "분실물센터",
-                    "url": "https://www.kongju.ac.kr/KNU/16924/subview.do",
-                },
-                {
-                    "name": "사고팔고",
-                    "url": "https://www.kongju.ac.kr/KNU/16925/subview.do",
-                },
-                {
-                    "name": "자취하숙",
-                    "url": "https://www.kongju.ac.kr/KNU/16926/subview.do",
-                },
-                {
-                    "name": "아르바이트",
-                    "url": "https://www.kongju.ac.kr/KNU/16927/subview.do",
-                },
-            ],
-        },
-    ]
+    # URL 정보 파일 읽어오기
+    with open('notices/src/urls.json', 'r', encoding='utf-8') as f:
+        urls = json.load(f)
 
     created_count = 0
-    for category_data in CATEGORIES:
+    for category_name, boards in urls.items():
         category, created = NoticeCategory.objects.get_or_create(
-            name=category_data['name'],
+            name=category_name,
         )
         if created:
             created_count += 1
-        for board_data in category_data['boards']:
+        for board_name, board_url in boards.items():
             board, created = NoticeBoard.objects.get_or_create(
                 category=category,
-                name=board_data['name'],
+                name=board_name,
                 defaults={
-                    'url': board_data['url'],
+                    'url': board_url,
                     'is_active': True
                 }
             )
