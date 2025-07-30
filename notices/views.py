@@ -1,66 +1,9 @@
 import requests
-from django.http import HttpResponse
+from django.http import JsonResponse
 from datetime import datetime, timedelta
 from django.shortcuts import render
+from .models import NoticeCategory, Notice, NoticeBoard
 
-CATEGORIES = [
-    {
-        'name': '공지사항',
-        'boards': [
-            {
-                'name': '학생소식',
-                'url': 'https://www.kongju.ac.kr/KNU/16909/subview.do',
-            },
-            {
-                'name': '행정소식',
-                'url': 'https://www.kongju.ac.kr/KNU/16910/subview.do',
-            },
-            {
-                'name': '행사안내',
-                'url': 'https://www.kongju.ac.kr/KNU/16911/subview.do',
-            },
-            {
-                'name': '채용소식',
-                'url': 'https://www.kongju.ac.kr/KNU/16917/subview.do',
-            },
-        ],
-    },
-    {
-        'name': '곰나루광장',
-        'boards': [
-            {
-                'name': '열린광장',
-                'url': 'https://www.kongju.ac.kr/KNU/16921/subview.do',
-            },
-            {
-                'name': '신문방송사',
-                'url': 'https://www.kongju.ac.kr/KNU/16922/subview.do',
-            },
-            {
-                'name': '스터디/모임',
-                'url': 'https://www.kongju.ac.kr/KNU/16923/subview.do',
-            },
-            {
-                'name': '분실물센터',
-                'url': 'https://www.kongju.ac.kr/KNU/16924/subview.do',
-            },
-            {
-                'name': '사고팔고',
-                'url': 'https://www.kongju.ac.kr/KNU/16925/subview.do',
-            },
-            {
-                'name': '자취하숙',
-                'url': 'https://www.kongju.ac.kr/KNU/16926/subview.do',
-            },
-            {
-                'name': '아르바이트',
-                'url': 'https://www.kongju.ac.kr/KNU/16927/subview.do',
-            },
-        ],
-    },
-]
-
-# Create your views here.
 def index(req):
     today = datetime.now().strftime('%Y-%m-%d')
     past_date = (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d")
@@ -70,9 +13,41 @@ def index(req):
     }
     return render(req, 'index.html', context)
 
-def proxy_view(req):
+def get_notice_count(req):
+    """날짜별 모든 게시판의 공지사항 개수를 반환하는 API"""
+    date_str = req.GET.get('date')
+    if not date_str:
+        return JsonResponse({'error': '날짜가 필요합니다'}, status=400)
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': '잘못된 날짜 형식입니다.'}, status=400)
+    
+    categories_data = []
+    for category in NoticeCategory.objects.all():
+        boards_data = []
+        for board in category.boards.filter(is_active=True):
+            notice_count = Notice.objects.filter(
+                board=board,
+                published_date=target_date
+            ).count()
+
+            boards_data.append({
+                'name': board.name,
+                'url': board.url,
+                'count': notice_count
+            })
+
+        categories_data.append({
+            'name': category.name,
+            'boards': boards_data
+        })
+    return JsonResponse({'categories': categories_data})
+
+def get_notice_preview(req):
+    """특정 게시판의 공지사항 미리보기를 반환하는 API"""
     pass
 
-def get_notice_count(req):
+def proxy_view(req):
     pass
 
