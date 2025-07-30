@@ -1,5 +1,4 @@
-import requests
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse
 from datetime import datetime, timedelta
 from django.shortcuts import render
 from .models import NoticeCategory, Notice, NoticeBoard
@@ -14,7 +13,7 @@ def index(req):
     return render(req, 'index.html', context)
 
 def get_notice_counts(req):
-    """날짜별 모든 게시판의 공지사항 개수를 반환하는 API"""
+    """날짜별 모든 게시판의 공지사항 개수를 반환하는 API (최적화)"""
     date_str = req.GET.get('date')
     if not date_str:
         return JsonResponse({'error': '날짜가 필요합니다'}, status=400)
@@ -23,12 +22,16 @@ def get_notice_counts(req):
     except ValueError:
         return JsonResponse({'error': '잘못된 날짜 형식입니다.'}, status=400)
     
+    # 데이터베이스 쿼리 최적화: select_related 사용
     categories_data = []
-    for category in NoticeCategory.objects.all():
+    categories = NoticeCategory.objects.prefetch_related(
+        'boards__notices'
+    ).all()
+    
+    for category in categories:
         boards_data = []
         for board in category.boards.filter(is_active=True):
-            notice_count = Notice.objects.filter(
-                board=board,
+            notice_count = board.notices.filter(
                 published_date=target_date
             ).count()
 
@@ -58,11 +61,11 @@ def get_notice_preview(req):
     except (ValueError, NoticeBoard.DoesNotExist):
         return JsonResponse({'error': '잘못된 요청입니다'}, status=400)
     
-    # 해당 날짜의 공지사항 가져오기
+    # 해당 날짜의 공지사항 가져오기 (웹사이트 표시 순서대로)
     notices = Notice.objects.filter(
         board=board,
         published_date=target_date
-    ).order_by('-crawled_at')[:5]
+    ).order_by('display_order')[:5]  # display_order가 작을수록 위에 표시된 공지
 
     notices_data = [
         {
@@ -77,16 +80,3 @@ def get_notice_preview(req):
         'notices': notices_data,
         'count': len(notices_data)
     })
-
-def proxy_view(req):
-    """기존 proxy.js 기능을 Django로 구현"""
-    url = req.GET.get('url')
-    if not url:
-        return HttpResponse('URL이 필요합니다', status=400)        
-    try:
-        res = requests.get(url, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
-        return HttpResponse(res.text, content_type='text/html')
-    except Exception as e:
-        return HttpResponse(f'요청 실패: {str(e)}', status=500)

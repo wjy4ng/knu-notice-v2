@@ -1,60 +1,3 @@
-const CATEGORIES = [
-  {
-    name: '공지사항',
-    boards: [
-      {
-        name: '학생소식',
-        url: 'https://www.kongju.ac.kr/KNU/16909/subview.do',
-      },
-      {
-        name: '행정소식',
-        url: 'https://www.kongju.ac.kr/KNU/16910/subview.do',
-      },
-      {
-        name: '행사안내',
-        url: 'https://www.kongju.ac.kr/KNU/16911/subview.do',
-      },
-      {
-        name: '채용소식',
-        url: 'https://www.kongju.ac.kr/KNU/16917/subview.do',
-      },
-    ],
-  },
-  {
-    name: '곰나루광장',
-    boards: [
-      {
-        name: '열린광장',
-        url: 'https://www.kongju.ac.kr/KNU/16921/subview.do',
-      },
-      {
-        name: '신문방송사',
-        url: 'https://www.kongju.ac.kr/KNU/16922/subview.do',
-      },
-      {
-        name: '스터디/모임',
-        url: 'https://www.kongju.ac.kr/KNU/16923/subview.do',
-      },
-      {
-        name: '분실물센터',
-        url: 'https://www.kongju.ac.kr/KNU/16924/subview.do',
-      },
-      {
-        name: '사고팔고',
-        url: 'https://www.kongju.ac.kr/KNU/16925/subview.do',
-      },
-      {
-        name: '자취하숙',
-        url: 'https://www.kongju.ac.kr/KNU/16926/subview.do',
-      },
-      {
-        name: '아르바이트',
-        url: 'https://www.kongju.ac.kr/KNU/16927/subview.do',
-      },
-    ],
-  },
-];
-
 // 미리보기 기능 변수 선언
 const previewArea = document.getElementById('preview-area');
 let showPreviewTimer;
@@ -68,19 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 오늘 날짜를 YYYY-MM-DD 형식으로 포맷
   const todayFormatted = formatDate(today);
   
-  // 날짜 필터
+  // 날짜 필터 (최대 5일까지)
   const pastDate = new Date();
-  pastDate.setDate(pastDate.getDate() - 4); // 최대 5일까지
+  pastDate.setDate(pastDate.getDate() - 4);
   const pastDateFormatted = formatDate(pastDate);
 
-  noticeDateInput.value = todayFormatted; // 기본값은 오늘 날짜
-  noticeDateInput.max = todayFormatted; // 최대 선택 가능 날짜를 오늘로 설정
-  noticeDateInput.min = pastDateFormatted; // 최소 선택 가능 날짜를 4일 전으로 설정
+  noticeDateInput.value = todayFormatted;
+  noticeDateInput.max = todayFormatted;
+  noticeDateInput.min = pastDateFormatted;
 
-  renderNoticeList(todayFormatted); // 페이지 로드 시 기본값으로 오늘 공지사항 렌더링
+  renderNoticeList(todayFormatted);
 
   noticeDateInput.addEventListener('change', (event) => {
-    renderNoticeList(event.target.value); // 선택된 날짜로 공지사항 렌더링
+    renderNoticeList(event.target.value);
   });
 });
 
@@ -148,7 +91,6 @@ document.addEventListener('mouseover', async (event) => {
       previewArea.innerHTML = previewContent;
 
     } catch (e) {
-      console.error('미리보기 내용을 가져오는 중 오류 발생:', e);
       previewArea.innerHTML = `<h3>${boardTitle}</h3><p>미리보기를 로딩할 수 없습니다.</p>`;
     }
   }, 200); // 0.2초 후 미리보기 표시
@@ -171,92 +113,13 @@ document.addEventListener('mouseout', (event) => {
 // 날짜 YYYY-MM-DD 형식으로 포맷
 function formatDate(date) {
   const year = date.getFullYear();
-  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // 한자리일 경우 두자리로 표시
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
   const day = date.getDate().toString().padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-// 게시판 URL과 필터 날짜에 따라 공지를 크롤링하고 필터링
-async function crawlAndFilterNotices(boardUrl, filterDate) {
-  const filteredNotices = [];
-  let page = 1;
-
-  while (true) {
-    try {
-      const pageUrl = page === 1 ? boardUrl : `${boardUrl}?page=${page}`;
-      const proxyUrl = `/proxy?url=${encodeURIComponent(pageUrl)}`;
-      const res = await fetch(proxyUrl); // 크롤링할 사이트 url을 proxy.js에게 전달
-      const html = await res.text(); // proxy.js 서버로부터 응답
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
-
-      const noticeRows = doc.querySelectorAll('tr:not(.notice)'); // 고정된 공지가 아닌 행 추출
-
-      // 공지가 없으면 중단
-      if (noticeRows.length === 0) {
-        break;
-      }
-
-      let stopCrawling = false;
-
-      for (const row of noticeRows) {
-        const dateCell = row.querySelector('.td-date'); // 게시글 날짜 가져오기
-        const titleElement = row.querySelector('td a'); // 게시글 제목 가져오기
-
-        if (!dateCell || !titleElement) continue;
-
-        let dateStr = dateCell.textContent.trim(); // 날짜를 String으로
-        dateStr = dateStr.replace(/\./g, '-'); // YYYY.MM.DD -> YYYY-MM-DD 형식으로
-        const noticeDate = new Date(dateStr);
-        noticeDate.setHours(0, 0, 0, 0);
-
-        // 공지 날짜가 지정된 날짜보다 이전이면 중단
-        if (noticeDate < filterDate) {
-          stopCrawling = true;
-          break;
-        }
-
-        // 날짜 일치 여부 비교
-        if (noticeDate.getFullYear() === filterDate.getFullYear() &&
-            noticeDate.getMonth() === filterDate.getMonth() &&
-            noticeDate.getDate() === filterDate.getDate()) {
-          filteredNotices.push({ title: titleElement.textContent.trim(), url: titleElement.href });
-        }
-      }
-
-      // 지정한 날짜가 페이지에 없으면 나가기
-      if (stopCrawling) {
-        break;
-      }
-
-      page++; // 다음 페이지로 이동
-
-    } catch (e) {
-      console.error("Crawling Error", e);
-      break;
-    }
-  }
-  return filteredNotices;
-}
-
-// 선택한 날짜의 공지 갯수 카운팅하는 함수
-async function fetchNoticeCount(board, targetDateStr = null) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  let filterDate = today; // 기본값은 오늘
-  if (targetDateStr) { // 날짜 선택 시
-    filterDate = new Date(targetDateStr);
-    filterDate.setHours(0, 0, 0, 0);
-  }
-
-  const notices = await crawlAndFilterNotices(board.url, filterDate);
-  return notices.length; // 개수 반환
-}
-
 // 여러 게시판의 공지사항 개수를 가져와서 웹 페이지에 동적으로 렌더링하는 함수
 async function renderNoticeList(dateString = null) {
-  // 공지사항과 곰나루광장의 게시판 목록 요소 찾기
   const noticeBoardListContainer = document.querySelector('#notice-category-section .board-list');
   const gomnaruBoardListContainer = document.querySelector('#gomnaru-category-section .board-list');
 
@@ -271,6 +134,7 @@ async function renderNoticeList(dateString = null) {
     
     // Django API 호출로 모든 데이터 한번에 가져오기
     const response = await fetch(`/api/notice-counts/?date=${dateStr}`);
+    
     if (!response.ok) {
       throw new Error('API 호출 실패');
     }
@@ -310,7 +174,6 @@ async function renderNoticeList(dateString = null) {
     });
     
   } catch (error) {
-    console.error('공지사항 목록 로딩 실패:', error);
     noticeBoardListContainer.innerHTML = '<p>데이터 로딩 실패</p>';
     gomnaruBoardListContainer.innerHTML = '<p>데이터 로딩 실패</p>';
   }

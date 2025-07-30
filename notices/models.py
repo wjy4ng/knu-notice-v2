@@ -38,15 +38,18 @@ class Notice(models.Model):
     published_date = models.DateField(verbose_name="게시일")
     view_count = models.IntegerField(default=0, verbose_name="조회수", blank=True, null=True)
     is_important = models.BooleanField(default=False, verbose_name="중요공지")
+    
+    # 웹사이트에서의 순서 정보 (작을수록 위에 표시된 공지)
+    display_order = models.IntegerField(default=0, verbose_name="표시 순서")
 
-    # 메카 정보
+    # 메타 정보
     crawled_at = models.DateTimeField(auto_now_add=True, verbose_name="크롤링 시간")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="수정시간")
 
     class Meta:
         verbose_name = "공지사항"
         verbose_name_plural = "공지사항"
-        ordering = ['-published_date', '-crawled_at']
+        ordering = ['-published_date', 'display_order', '-crawled_at']
         unique_together = ['board', 'url']
 
     def __str__(self):

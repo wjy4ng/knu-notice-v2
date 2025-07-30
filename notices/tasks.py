@@ -1,8 +1,18 @@
-from celery import shared_task
+# Celery 가져오기 (선택적)
+try:
+    from celery import shared_task
+    CELERY_AVAILABLE = True
+except ImportError:
+    CELERY_AVAILABLE = False
+    # Celery가 없을 때 사용할 더미 데코레이터
+    def shared_task(func):
+        return func
+
 from django.utils import timezone
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import logging
+import os
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -15,68 +25,116 @@ from .models import NoticeCategory, NoticeBoard, Notice
 
 logger = logging.getLogger(__name__)
 
+@shared_task
+def crawl_all_notices():
+    """Main task to crawl notices from all active boards"""
+    from django.utils import timezone
+    
+    start_time = timezone.now()
+    logger.info(f"=== 크롤링 시작: {start_time} ===")
+    
+    boards = NoticeBoard.objects.filter(is_active=True)
+    total_new_notices = 0
+    
+    for board in boards:
+        try:
+            new_count = crawl_board_notices(board)
+            total_new_notices += new_count
+            logger.info(f"{board.name}: {new_count} new notices added")
+        except Exception as e:
+            logger.error(f"Failed to crawl {board.name}: {str(e)}")
+    
+    end_time = timezone.now()
+    duration = (end_time - start_time).total_seconds()
+    
+    logger.info(f"=== 크롤링 완료: {end_time} (소요시간: {duration:.1f}초) ===")
+    logger.info(f"총 {total_new_notices}개 새 공지사항 수집")
+    
+    return total_new_notices
+
 def get_chrome_driver():
-    """Chrome WebDriver 설정 (WebDriver Manager 사용)"""
+    """Chrome WebDriver 설정 (Render.com 환경 지원)"""
     chrome_options = Options()
-    chrome_options.add_argument('--headless')  # 백그라운드 실행
+    
+    # 기본 보안 설정
+    chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--window-size=1920,1080')
-    chrome_options.add_argument('--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    chrome_options.add_argument('--ignore-certificate-errors')
-    chrome_options.add_argument('--ignore-ssl-errors')
-    chrome_options.add_argument('--allow-running-insecure-content')
-    chrome_options.add_argument('--disable-web-security')
+    
+    # 보안 강화 설정
+    chrome_options.add_argument('--disable-extensions')
+    chrome_options.add_argument('--disable-plugins')
+    chrome_options.add_argument('--disable-images')  # 이미지 로딩 비활성화로 속도 향상
+    chrome_options.add_argument('--disable-javascript')  # JS 비활성화 (보안)
+    chrome_options.add_argument('--disable-background-timer-throttling')
+    chrome_options.add_argument('--disable-backgrounding-occluded-windows')
+    chrome_options.add_argument('--disable-renderer-backgrounding')
+    
+    # Render.com 환경 최적화
+    chrome_options.add_argument('--remote-debugging-port=9222')
+    chrome_options.add_argument('--disable-background-networking')
+    chrome_options.add_argument('--disable-background-updates')
+    chrome_options.add_argument('--disable-component-extensions-with-background-pages')
+    chrome_options.add_argument('--disable-default-apps')
+    chrome_options.add_argument('--disable-sync')
+    chrome_options.add_argument('--metrics-recording-only')
+    chrome_options.add_argument('--no-first-run')
+    chrome_options.add_argument('--safebrowsing-disable-auto-update')
+    chrome_options.add_argument('--use-mock-keychain')
+    
+    # 사용자 에이전트 (공주대학교 크롤링 명시)
+    chrome_options.add_argument('--user-agent=KNU-Notice-Crawler/1.0 (Educational Purpose)')
+    
+    # 환경별 설정
+    import os
+    is_render = os.getenv('RENDER') is not None
+    is_debug = os.getenv('DEBUG', 'False').lower() == 'true'
+    
+    if is_debug and not is_render:
+        # 로컬 개발환경에서만 SSL 무시
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument('--ignore-ssl-errors')
+        chrome_options.add_argument('--allow-running-insecure-content')
+        chrome_options.add_argument('--disable-web-security')
+    
     chrome_options.add_argument('--disable-features=VizDisplayCompositor')
     
-    # macOS에서 Chrome 경로 지정
-    chrome_paths = [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        '/Applications/Chromium.app/Contents/MacOS/Chromium',
-        '/usr/bin/google-chrome',
-        '/usr/bin/chromium-browser'
-    ]
-    
-    chrome_binary = None
-    for path in chrome_paths:
-        import os
-        if os.path.exists(path):
-            chrome_binary = path
-            break
-    
-    if chrome_binary:
-        chrome_options.binary_location = chrome_binary
-        logger.info(f"Chrome 바이너리 찾음: {chrome_binary}")
+    # Chrome 바이너리 경로 설정
+    if is_render:
+        # Render.com 환경
+        chrome_options.binary_location = '/usr/bin/google-chrome'
+        logger.info("Using Chrome binary for Render.com: /usr/bin/google-chrome")
     else:
-        logger.warning("Chrome 바이너리를 찾을 수 없음. 시스템 기본값 사용")
+        # 로컬 환경 (macOS)
+        chrome_paths = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            '/Applications/Chromium.app/Contents/MacOS/Chromium',
+            '/usr/bin/google-chrome',
+            '/usr/bin/chromium-browser'
+        ]
+        
+        chrome_binary = None
+        for path in chrome_paths:
+            if os.path.exists(path):
+                chrome_binary = path
+                break
+        
+        if chrome_binary:
+            chrome_options.binary_location = chrome_binary
+            logger.info(f"Chrome binary found: {chrome_binary}")
+        else:
+            logger.warning("Chrome binary not found, using system default")
     
     try:
-        # WebDriver Manager를 사용하여 자동으로 ChromeDriver 다운로드 및 설정
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
         driver.set_page_load_timeout(30)
         return driver
     except Exception as e:
-        logger.error(f"Chrome WebDriver 생성 실패: {str(e)}")
+        logger.error(f"Failed to create Chrome WebDriver: {str(e)}")
         raise
-
-@shared_task
-def crawl_all_notices():
-    """모든 게시판의 공지사항을 크롤링하는 메인 테스크"""
-    logger.info("공지사항 크롤링 시작")
-    
-    boards = NoticeBoard.objects.filter(is_active=True)
-
-    total_new_notices = 0
-    for board in boards:
-        try:
-            new_count = crawl_board_notices(board)
-            total_new_notices += new_count
-            logger.info(f"{board.name}: {new_count}개 새 공지사항 추가")
-        except Exception as e:
-            logger.error(f"{board.name} 크롤링 실패: {str(e)}")
-    return total_new_notices
 
 def crawl_board_notices(board, days_back=7):
     """특정 게시판의 공지사항을 크롤링 (Selenium 사용)"""
@@ -88,67 +146,60 @@ def crawl_board_notices(board, days_back=7):
     try:
         driver = get_chrome_driver()
         
-        while True:
-            # 페이지 URL 생성
+        while page <= 5:  # 최대 5페이지까지
             page_url = board.url if page == 1 else f"{board.url}?page={page}"
             
             try:
-                logger.info(f"{board.name} 페이지 {page} 크롤링 시작: {page_url}")
+                logger.info(f"Crawling {board.name} page {page}: {page_url}")
                 
-                # 요청 간 지연 시간 추가 (서버 부하 방지)
                 import time
-                time.sleep(2)  # 2초 대기
+                time.sleep(3)  # 서버 부하 최소화를 위한 대기시간 증가
                 
                 driver.get(page_url)
                 
-                # 페이지 로딩 대기
                 WebDriverWait(driver, 10).until(
                     EC.presence_of_element_located((By.TAG_NAME, "table"))
                 )
                 
-                # HTML 소스 가져오기
                 html_source = driver.page_source
                 soup = BeautifulSoup(html_source, 'html.parser')
                 
-                # 공지사항 행 찾기
-                notice_rows = soup.select('tr:not(.notice)')  # 고정 공지 제외
+                notice_rows = soup.select('tr:not(.notice)')
                 
                 if not notice_rows:
-                    logger.info(f"{board.name} 페이지 {page}: 공지사항이 없음")
+                    logger.info(f"{board.name} page {page}: No notices found")
                     break
                 
                 stop_crawling = False
                 processed_count = 0
                 
-                for row in notice_rows:
+                for index, row in enumerate(notice_rows):
                     date_cell = row.select_one('.td-date')
                     title_element = row.select_one('td a')
                     
                     if not date_cell or not title_element:
                         continue
                     
-                    # 날짜 파싱
                     date_str = date_cell.get_text(strip=True).replace('.', '-')
                     try:
                         notice_date = datetime.strptime(date_str, '%Y-%m-%d').date()
                     except ValueError:
-                        logger.warning(f"날짜 파싱 실패: {date_str}")
+                        logger.warning(f"Date parsing failed: {date_str}")
                         continue
                     
-                    # 오래된 공지사항이면 중단
                     if notice_date < cutoff_date:
                         stop_crawling = True
                         break
                     
-                    # 공지사항 저장 (제목만 저장, 원문은 링크로 연결)
                     title = title_element.get_text(strip=True)
                     url = title_element.get('href', '')
                     
-                    # 상대 URL을 절대 URL로 변환
                     if url.startswith('/'):
                         url = 'https://www.kongju.ac.kr' + url
                     
-                    # 중복 체크 후 저장
+                    # 페이지와 행 위치를 기반으로 표시 순서 계산 (작을수록 최신)
+                    display_order = (page - 1) * 100 + index
+                    
                     notice, created = Notice.objects.get_or_create(
                         board=board,
                         url=url,
@@ -157,36 +208,32 @@ def crawl_board_notices(board, days_back=7):
                             'published_date': notice_date,
                             'author': '',
                             'view_count': 0,
+                            'display_order': display_order,
                         }
                     )
                     
                     if created:
                         new_notices_count += 1
-                        logger.info(f"새 공지사항 저장: {title[:50]}...")
+                        logger.info(f"New notice saved: {title[:50]}...")
                     
                     processed_count += 1
                 
-                logger.info(f"{board.name} 페이지 {page}: {processed_count}개 처리, {new_notices_count}개 새로 저장")
+                logger.info(f"{board.name} page {page}: {processed_count} processed, {new_notices_count} new")
                 
                 if stop_crawling:
                     break
-                
+                    
                 page += 1
                 
-                # 페이지당 최대 5페이지까지만 (과도한 크롤링 방지)
-                if page > 5:
-                    logger.info(f"{board.name}: 최대 페이지 수 도달, 크롤링 중단")
-                    break
-                
             except TimeoutException:
-                logger.error(f"{board.name} 페이지 {page}: 페이지 로딩 타임아웃")
+                logger.error(f"{board.name} page {page}: Page loading timeout")
                 break
             except Exception as e:
-                logger.error(f"{board.name} 페이지 {page} 크롤링 오류: {str(e)}")
+                logger.error(f"Error processing {board.name} page {page}: {str(e)}")
                 break
                 
     except Exception as e:
-        logger.error(f"{board.name} 크롤링 전체 실패: {str(e)}")
+        logger.error(f"Critical error in crawl_board_notices for {board.name}: {str(e)}")
     finally:
         if driver:
             driver.quit()
@@ -195,7 +242,7 @@ def crawl_board_notices(board, days_back=7):
 
 @shared_task
 def setup_initial_data():
-    """초기 카테고리와 게시판 데이터 설정"""
+    """Setup initial category and board data"""
     categories_data = [
         {
             'name': '공지사항',
@@ -231,4 +278,4 @@ def setup_initial_data():
                 name=board_data['name'],
                 url=board_data['url'],
             )
-    return "초기 데이터 설정 완료"
+    return "Initial data setup completed"
