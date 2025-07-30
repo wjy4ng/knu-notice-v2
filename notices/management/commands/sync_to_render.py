@@ -10,8 +10,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """크롤링된 데이터를 Render.com으로 전송"""
         
-        # 최근 100개 공지사항 가져오기
-        notices = Notice.objects.all().order_by('-created_at')[:100]
+        # 최신 100개 공지사항 가져오기
+        notices = Notice.objects.all().order_by('-crawled_at')[:100]
         
         data = []
         for notice in notices:

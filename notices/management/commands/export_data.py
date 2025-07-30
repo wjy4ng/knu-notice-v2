@@ -9,8 +9,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         """크롤링된 데이터를 JSON으로 내보내기"""
         
-        # 최근 공지사항들 가져오기
-        notices = Notice.objects.select_related('category', 'board').all().order_by('-created_at')[:200]
+                # 최신 200개 공지사항 가져오기
+        notices = Notice.objects.select_related('category', 'board').all().order_by('-crawled_at')[:200]
         
         data = {
             'notices': [],
@@ -25,8 +25,11 @@ class Command(BaseCommand):
                 'date': notice.date.isoformat() if notice.date else None,
                 'category_name': notice.category.name,
                 'board_name': notice.board.name,
+                'view_count': notice.view_count,
+                'is_important': notice.is_important,
                 'display_order': notice.display_order,
-                'created_at': notice.created_at.isoformat(),
+                'crawled_at': notice.crawled_at.isoformat(),
+                'updated_at': notice.updated_at.isoformat(),
             })
         
         # JSON 파일로 저장
