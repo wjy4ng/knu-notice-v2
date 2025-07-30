@@ -43,15 +43,23 @@ def crawl_board_notices(board):
     new_notices_count = 0
     try:
         notices = crawl_notices(board_name=board.name)
+        from datetime import datetime
         for notice in notices:
             # 공지사항이 이미 존재하는지 확인
             if not Notice.objects.filter(title=notice['title'], url=notice['url']).exists():
-                # 존재하지 않으면 새로운 공지사항 생성
+                # 날짜 포맷 변환 (예: '2025.07.29' -> '2025-07-29')
+                date_str = notice['date']
+                try:
+                    if date_str and '.' in date_str:
+                        date_obj = datetime.strptime(date_str, '%Y.%m.%d')
+                        date_str = date_obj.strftime('%Y-%m-%d')
+                except Exception as e:
+                    logger.warning(f"날짜 변환 실패: {date_str} ({e})")
                 Notice.objects.create(
                     board=board,
                     title=notice['title'],
                     url=notice['url'],
-                    published_date=notice['date'],
+                    published_date=date_str,
                     display_order=notice.get('display_order', 0),
                 )
                 new_notices_count += 1
