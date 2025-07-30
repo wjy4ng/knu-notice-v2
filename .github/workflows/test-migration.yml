@@ -1,0 +1,62 @@
+name: Test Migration
+
+on:
+  workflow_dispatch: # 수동 실행 전용
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install uv
+        uv sync
+        
+    - name: Test database migration
+      env:
+        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+        DEBUG: "False"
+        GITHUB_ACTIONS: "true"
+      run: |
+        echo "Testing database migration..."
+        
+        # 기존 DB 파일 삭제
+        rm -f db.sqlite3
+        
+        # 마이그레이션 실행
+        echo "Running migrations..."
+        uv run python manage.py migrate --verbosity=2
+        
+        # 테이블 확인
+        echo "Checking database tables..."
+        uv run python -c "
+        import sqlite3
+        conn = sqlite3.connect('db.sqlite3')
+        cursor = conn.cursor()
+        cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table';\")
+        tables = cursor.fetchall()
+        print('Available tables:')
+        for table in tables:
+            print(f'  - {table[0]}')
+        conn.close()
+        "
+        
+        # Django 모델 확인
+        echo "Testing Django models..."
+        uv run python manage.py shell -c "
+        from notices.models import NoticeCategory, NoticeBoard, Notice
+        print('Models imported successfully')
+        print('NoticeCategory count:', NoticeCategory.objects.count())
+        print('NoticeBoard count:', NoticeBoard.objects.count())
+        print('Notice count:', Notice.objects.count())
+        "

@@ -1,10 +1,24 @@
 from django.core.management.base import BaseCommand
+from django.db import connection
 from notices.tasks import crawl_all_notices, setup_initial_data
 
 class Command(BaseCommand):
     help = 'Setup initial data and crawl notices'
 
     def handle(self, *args, **options):
+        # 데이터베이스 연결 및 테이블 확인
+        self.stdout.write('Checking database connection...')
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                tables = [row[0] for row in cursor.fetchall()]
+                self.stdout.write(f'Available tables: {tables}')
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Database connection failed: {e}')
+            )
+            return
+
         self.stdout.write('Setting up initial data...')
         try:
             result = setup_initial_data()
@@ -15,6 +29,7 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'Failed to setup initial data: {e}')
             )
+            return
 
         self.stdout.write('Starting to crawl notices...')
         try:

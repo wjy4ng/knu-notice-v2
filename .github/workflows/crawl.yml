@@ -32,17 +32,35 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable
         
-    - name: Run crawling and export data
+    - name: Setup database and run crawling
       env:
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         DEBUG: "False"
         GITHUB_ACTIONS: "true"
       run: |
-        # 마이그레이션 및 크롤링 실행
-        uv run python manage.py migrate
+        # SQLite 데이터베이스 파일 생성 및 마이그레이션
+        echo "Creating SQLite database..."
+        rm -f db.sqlite3
+        uv run python manage.py migrate --verbosity=2
+        
+        # 데이터베이스 테이블 확인
+        echo "Checking database tables..."
+        uv run python -c "
+        import sqlite3
+        conn = sqlite3.connect('db.sqlite3')
+        cursor = conn.cursor()
+        cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table';\")
+        tables = cursor.fetchall()
+        print('Available tables:', [table[0] for table in tables])
+        conn.close()
+        "
+        
+        # 크롤링 실행
+        echo "Starting crawling..."
         uv run python manage.py crawl_notices
         
         # 크롤링된 데이터를 JSON으로 내보내기
+        echo "Exporting data to JSON..."
         uv run python manage.py export_data
         
     - name: Send data to Render.com
