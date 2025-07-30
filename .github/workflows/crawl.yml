@@ -4,6 +4,7 @@ on:
   schedule:
     # 매시간 0분에 실행 (UTC 기준)
     - cron: '0 * * * *'
+  push:
   workflow_dispatch: # 수동 실행 가능
 
 jobs:
