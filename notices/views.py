@@ -13,7 +13,7 @@ def index(req):
     }
     return render(req, 'index.html', context)
 
-def get_notice_count(req):
+def get_notice_counts(req):
     """날짜별 모든 게시판의 공지사항 개수를 반환하는 API"""
     date_str = req.GET.get('date')
     if not date_str:

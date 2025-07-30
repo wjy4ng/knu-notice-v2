@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: knu-notice-web
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn knu_notice.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: "False"
+  
+  - type: redis
+    name: knu-notice-redis
+    ipAllowList: []
+
+databases:
+  - name: knu-notice-db
+    databaseName: knu_notice
+    user: knu_notice

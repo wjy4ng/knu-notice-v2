@@ -129,21 +129,18 @@ document.addEventListener('mouseover', async (event) => {
       const selectedDateInput = document.getElementById('notice-date-input');
       const selectedDateString = selectedDateInput.value; // 선택된 날짜 문자열 가져오기
 
-      let filterDate = new Date(); // 기본값은 오늘
-      if (selectedDateString) {
-        filterDate = new Date(selectedDateString);
-        filterDate.setHours(0, 0, 0, 0);
+      // Django API 호출로 미리보기 데이터 가져오기
+      const response = await fetch(`/api/notice-preview/?url=${encodeURIComponent(boardUrl)}&date=${selectedDateString}`);
+      if (!response.ok) {
+        throw new Error('API 호출 실패');
       }
+      const data = await response.json();
 
-      // 웹 크롤링 및 필터링 함수 호출
-      const filteredNotices = await crawlAndFilterNotices(boardUrl, filterDate);
-
-      let previewContent = `<h3>${boardTitle}</h3><ul>`;
+      let previewContent = `<h3>${data.board_name}</h3><ul>`;
 
       // 미리보기에 새 공지 제목 삽입
-      if (filteredNotices.length !== 0) {
-        // 최대 5개의 공지만 표시
-        filteredNotices.slice(0, 5).forEach(notice => {
+      if (data.notices && data.notices.length > 0) {
+        data.notices.forEach(notice => {
           previewContent += `<li>${notice.title}</li>`;
         });
       }
@@ -266,47 +263,55 @@ async function renderNoticeList(dateString = null) {
   // 로딩 메시지 표시
   noticeBoardListContainer.innerHTML = '<p>로딩 중...</p>';
   gomnaruBoardListContainer.innerHTML = '<p>로딩 중...</p>';
- 
-  // 모든 게시판 요청을 병렬 처리하고 모두 완료할 때까지 기다림.
-  const allCategoryPromises = CATEGORIES.map(async category => { // category: 공지사항, 곰나루 광장
-    const fetchPromises = category.boards.map(async board => { // board: 학생소식, 행정소식 등
-      const noticeCount = await fetchNoticeCount(board, dateString); // noticeCount: 각 게시판 공지 갯수
-      return { ...board, count: noticeCount }; // 원래 board 객체에 count 속성 추가해서 반환
+
+  try {
+    const today = new Date();
+    const filterDate = dateString ? new Date(dateString) : today;
+    const dateStr = formatDate(filterDate);
+    
+    // Django API 호출로 모든 데이터 한번에 가져오기
+    const response = await fetch(`/api/notice-counts/?date=${dateStr}`);
+    if (!response.ok) {
+      throw new Error('API 호출 실패');
+    }
+    const data = await response.json();
+    
+    // 각 카테고리별로 렌더링
+    data.categories.forEach(category => {
+      const targetContainer = category.name === '공지사항' ? 
+        noticeBoardListContainer : gomnaruBoardListContainer;
+      
+      targetContainer.innerHTML = '';
+      
+      category.boards.forEach((board, index) => {
+        const item = document.createElement('a');
+        item.className = 'notice-item';
+        item.href = board.url;
+        item.target = '_blank';
+        item.dataset.count = board.count;
+        item.innerHTML = `
+          <span class="notice-title">${board.name}</span>
+          <span class="notice-count">${board.count}</span>  
+        `;
+        
+        if (board.count === 0) {
+          item.classList.add('inactive-notice-item');
+        }
+        
+        item.style.opacity = '0';
+        targetContainer.appendChild(item);
+        
+        // 애니메이션
+        setTimeout(() => {
+          item.style.opacity = '1';
+          item.style.animation = `fadeIn 0.5s ease-out forwards`;
+        }, 50 * index);
+      });
     });
-    const boardsWithDetails = await Promise.all(fetchPromises); 
-    return { categoryName: category.name, boardsWithCounts: boardsWithDetails }; // 게시판 이름, 새공지 개수 반환
-  });
-
-  const allCategoryData = await Promise.all(allCategoryPromises); // 공지사항과 곰나루광장의 fetch 작업이 모두 끝나면 결과를 저장
-
-  // 각 카테고리의 목록을 렌더링
-  allCategoryData.forEach(categoryData => {
-    const targetContainer = categoryData.categoryName === '공지사항' ? noticeBoardListContainer : gomnaruBoardListContainer;
-    targetContainer.innerHTML = '';
-
-    categoryData.boardsWithCounts.forEach((board, index) => {
-      const item = document.createElement('a'); // <a> 생성
-      item.className = 'notice-item';
-      item.href = board.url; 
-      item.target = '_blank';
-      item.dataset.count = board.count; // 새 공지 개수를 data 속성으로 저장
-      item.innerHTML = `
-        <span class="notice-title">${board.name}</span>
-        <span class="notice-count">${board.count}</span>  
-      `;
-      // 오늘 올라온 공지가 없는 경우 따로 CSS 처리하기 위함
-      if (board.count === 0) {
-        item.classList.add('inactive-notice-item');
-      }
-      item.style.opacity = '0'; // 애니메이션을 위해 초기에 보이지 않도록 설정
-      targetContainer.appendChild(item); // DOM 컨테이너에 추가
-
-      // fadeIn 애니메이션 실행
-      setTimeout(() => {
-        item.style.opacity = '1';
-        item.style.transform = 'translateY(0)';
-        item.style.animation = `fadeIn 0.5s ease-out forwards`;
-      }, 50 * index); // 항목마다 순차적 등장
-    });
-  });
+    
+  } catch (error) {
+    console.error('공지사항 목록 로딩 실패:', error);
+    noticeBoardListContainer.innerHTML = '<p>데이터 로딩 실패</p>';
+    gomnaruBoardListContainer.innerHTML = '<p>데이터 로딩 실패</p>';
+  }
 }

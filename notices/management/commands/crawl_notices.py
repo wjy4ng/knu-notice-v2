@@ -1,0 +1,44 @@
+from django.core.management.base import BaseCommand
+from notices.tasks import crawl_all_notices, setup_initial_data
+
+class Command(BaseCommand):
+    help = 'Setup initial data and crawl notices'
+
+    def handle(self, *args, **options):
+        self.stdout.write('Setting up initial data...')
+        try:
+            result = setup_initial_data()
+            self.stdout.write(
+                self.style.SUCCESS(f'Successfully setup initial data: {result}')
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Failed to setup initial data: {e}')
+            )
+
+        self.stdout.write('Starting to crawl notices...')
+        try:
+            # Celery 없이 직접 함수 호출
+            from notices.tasks import crawl_board_notices
+            from notices.models import NoticeBoard
+            
+            boards = NoticeBoard.objects.filter(is_active=True)
+            total_new_notices = 0
+            
+            for board in boards:
+                try:
+                    new_count = crawl_board_notices(board)
+                    total_new_notices += new_count
+                    self.stdout.write(f'{board.name}: {new_count}개 새 공지사항 추가')
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f'{board.name} 크롤링 실패: {e}')
+                    )
+            
+            self.stdout.write(
+                self.style.SUCCESS(f'Successfully crawled {total_new_notices} new notices')
+            )
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Failed to crawl notices: {e}')
+            )
