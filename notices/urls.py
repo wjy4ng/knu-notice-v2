@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from .import_views import ImportDataView
+from .src.import_views import ImportDataView
 
 app_name = "notices"
 

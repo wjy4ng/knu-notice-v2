@@ -131,9 +131,6 @@ LOGGING = {
         'require_debug_true': {
             '()': 'django.utils.log.RequireDebugTrue',
         },
-        'remove_sensitive_data': {
-            '()': 'utils.log_filters.RemoveSensitiveData',
-        }
     },
     'handlers': {
         'console': {

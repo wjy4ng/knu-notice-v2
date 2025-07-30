@@ -11,7 +11,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
-from .models import NoticeCategory, NoticeBoard, Notice
+from ..models import NoticeCategory, NoticeBoard, Notice
 
 logger = logging.getLogger(__name__)
 

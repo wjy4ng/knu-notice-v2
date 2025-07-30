@@ -1,9 +1,13 @@
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseNotAllowed
 from datetime import datetime, timedelta
 from django.shortcuts import render
 from .models import NoticeCategory, Notice, NoticeBoard
+import logging
+
+logger = logging.getLogger(__name__)
 
 def index(req):
+    """메인 페이지"""
     today = datetime.now().strftime('%Y-%m-%d')
     past_date = (datetime.now() - timedelta(days=4)).strftime("%Y-%m-%d")
     context = {
@@ -13,7 +17,10 @@ def index(req):
     return render(req, 'index.html', context)
 
 def get_notice_counts(req):
-    """날짜별 모든 게시판의 공지사항 개수를 반환"""
+    """날짜별 모든 게시판의 공지사항 개수를 반환 (GET only)"""
+    if req.method != 'GET':
+        return HttpResponseNotAllowed(['GET']) 
+
     date_str = req.GET.get('date')
     if not date_str:
         return JsonResponse({'error': '날짜가 필요합니다'}, status=400)
@@ -22,9 +29,12 @@ def get_notice_counts(req):
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
         return JsonResponse({'error': '잘못된 날짜 형식입니다.'}, status=400)
+    except Exception as e:  # 예외 처리 추가
+        logger.exception("날짜 처리 중 오류")
+        return JsonResponse({'error': 'Internal Server Error'}, status=500)
     
     categories_data = []
-    categories = NoticeCategory.objects.prefetch_related('boards__notices').all()
+    categories = NoticeCategory.objects.all()
     
     for category in categories:
         boards_data = []
@@ -43,7 +53,10 @@ def get_notice_counts(req):
     return JsonResponse({'categories': categories_data})
 
 def get_notice_preview(req):
-    """특정 게시판의 공지사항 미리보기를 반환"""
+    """특정 게시판의 공지사항 미리보기를 반환 (GET only)"""
+    if req.method != 'GET':
+        return HttpResponseNotAllowed(['GET'])
+    
     board_url = req.GET.get('url')
     date_str = req.GET.get('date')
     
@@ -53,8 +66,13 @@ def get_notice_preview(req):
     try:
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
         board = NoticeBoard.objects.get(url=board_url, is_active=True)
-    except (ValueError, NoticeBoard.DoesNotExist):
-        return JsonResponse({'error': '잘못된 요청입니다'}, status=400)
+    except ValueError:
+        return JsonResponse({'error': '잘못된 날짜 형식입니다.'}, status=400)
+    except NoticeBoard.DoesNotExist:
+        return JsonResponse({'error': '게시판을 찾을 수 없습니다.'}, status=404)
+    except Exception as e:
+        logger.exception("게시판 조회 중 오류")
+        return JsonResponse({'error': 'Internal Server Error'}, status=500)
     
     notices = Notice.objects.filter(
         board=board,
@@ -65,8 +83,8 @@ def get_notice_preview(req):
         {
             'title': notice.title,
             'url': notice.url,
-            'author': notice.author or '',
-            'view_count': notice.view_count or 0,
+            'author': notice.author,
+            'view_count': notice.view_count,
             'is_important': notice.is_important
         } for notice in notices
     ]
