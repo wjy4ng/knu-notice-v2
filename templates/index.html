@@ -1,0 +1,56 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}공주대학교 새 소식 알림판</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <div class="container">
+    <div class="left-group">
+      <h1>공주대학교<br>새 소식 알림판</h1>
+      <div class="date-filter-container">
+        <label for="notice-date-input">날짜 선택:</label>
+        <input type="date" id="notice-date-input">
+      </div>
+      <div class="useful-links">
+        <h2>관련 사이트</h2>
+        <ul>
+          <li><a href="https://kncu.kongju.ac.kr/xn-sso/login.php?auto_login=&sso_only=&cvs_lgn=&return_url=https%3A%2F%2Fkncu.kongju.ac.kr%2Fxn-sso%2Fgw-cb.php%3Ffrom%3D%26login_type%3Dstandalone%26return_url%3Dhttps%253A%252F%252Fkncu.kongju.ac.kr%252Flogin%252Fcallback" target="_blank"><i class="fas fa-link"></i> LMS</a></li>
+          <li><a href="https://login.kongju.ac.kr/View/SSO/sso.jsp?v=20250109010403&param=&sg_pkid=S05VMDA4Mg==&sg_return=aHR0cHM6Ly9wb3J0YWwua29uZ2p1LmFjLmtyL1ZpZXcvTURJX3BvcnRhbC9sb2dpblAuanNw&gourl=Lw==" target="_blank"><i class="fas fa-link"></i> 포털</a></li>
+          <li><a href="https://library.kongju.ac.kr/#/" target="_blank"><i class="fas fa-link"></i> 도서관</a></li>
+          <li><a href="https://dormi.kongju.ac.kr/" target="_blank"><i class="fas fa-link"></i> 기숙사</a></li>
+          <li><a href="https://job.kongju.ac.kr/" target="_blank"><i class="fas fa-link"></i> 진로취업지원실</a></li>
+        </ul>
+      </div>
+      <div class="contact-info">
+        <p><a href="https://github.com/wjy4ng" target="_blank" class="contact-button"><i class="fab fa-github"></i> wjyang's Github</a></p>
+        <p><a href="mailto:ywj581@gmail.com" class="contact-button"><i class="fas fa-envelope"></i> ywj581@gmail.com</a></p>
+      </div>
+    </div>
+    <div id="notice-list">
+      <div class="category-section" id="notice-category-section">
+        <h2>공지사항</h2>
+        <div class="board-list">
+          <!-- 공지사항 목록 부분 -->
+        </div>
+      </div>
+      <div class="category-section" id="gomnaru-category-section">
+        <h2>곰나루광장</h2>
+        <div class="board-list">
+          <!-- 곰나루광장 목록 부분 -->
+        </div>
+      </div>
+    </div>
+    <div id="preview-area">
+      <!-- 미리보기 부분 -->
+    </div>
+  </div>
+  <script src="script.js"></script>
+  <footer class="footer">
+    <p>&copy; 2025 wjy4ng. All rights reserved.</p>
+  </footer>
+</body>
+</html>
