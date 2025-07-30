@@ -59,9 +59,9 @@ class Command(BaseCommand):
                 self.style.SUCCESS(f'Successfully crawled {total_new_notices} new notices')
             )
 
-            # 크롤링된 데이터를 JSON으로 내보내기
+            # 크롤링된 데이터를 {"notices": ...} 구조로 JSON으로 내보내기
             with open('crawled_data.json', 'w', encoding='utf-8') as f:
-                json.dump(all_notices, f, ensure_ascii=False, indent=4)
+                json.dump({"notices": all_notices}, f, ensure_ascii=False, indent=4)
             
             self.stdout.write(self.style.SUCCESS('Successfully crawled and exported data to JSON'))
         except Exception as e:
