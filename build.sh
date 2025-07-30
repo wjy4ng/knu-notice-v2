@@ -20,3 +20,6 @@ try:
 except Exception as e:
     print(f'Initial data setup failed: {e}')
 "
+
+# Add dummy data for testing
+python manage.py add_dummy_data
