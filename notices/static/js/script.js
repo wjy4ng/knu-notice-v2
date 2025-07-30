@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 오늘 날짜를 YYYY-MM-DD 형식으로 포맷
   const todayFormatted = formatDate(today);
-  
+
   // 날짜 필터 (최대 5일까지)
   const pastDate = new Date();
   pastDate.setDate(pastDate.getDate() - 4);
@@ -84,7 +84,7 @@ document.addEventListener('mouseover', async (event) => {
       // 미리보기에 새 공지 제목 삽입
       if (data.notices && data.notices.length > 0) {
         data.notices.forEach(notice => {
-          previewContent += `<li>${notice.title}</li>`;
+          previewContent += `<li><a href="${notice.url}" target="_blank">${notice.title}</a></li>`;
         });
       }
       previewContent += `</ul>`;
@@ -131,22 +131,22 @@ async function renderNoticeList(dateString = null) {
     const today = new Date();
     const filterDate = dateString ? new Date(dateString) : today;
     const dateStr = formatDate(filterDate);
-    
+
     // Django API 호출로 모든 데이터 한번에 가져오기
     const response = await fetch(`/api/v1/notice-counts/?date=${dateStr}`);
-    
+
     if (!response.ok) {
       throw new Error('API 호출 실패');
     }
     const data = await response.json();
-    
+
     // 각 카테고리별로 렌더링
     data.categories.forEach(category => {
-      const targetContainer = category.name === '공지사항' ? 
+      const targetContainer = category.name === '공지사항' ?
         noticeBoardListContainer : gomnaruBoardListContainer;
-      
+
       targetContainer.innerHTML = '';
-      
+
       category.boards.forEach((board, index) => {
         const item = document.createElement('a');
         item.className = 'notice-item';
@@ -155,16 +155,16 @@ async function renderNoticeList(dateString = null) {
         item.dataset.count = board.count;
         item.innerHTML = `
           <span class="notice-title">${board.name}</span>
-          <span class="notice-count">${board.count}</span>  
+          <span class="notice-count">${board.count}</span>
         `;
-        
+
         if (board.count === 0) {
           item.classList.add('inactive-notice-item');
         }
-        
+
         item.style.opacity = '0';
         targetContainer.appendChild(item);
-        
+
         // 애니메이션
         setTimeout(() => {
           item.style.opacity = '1';
@@ -172,7 +172,7 @@ async function renderNoticeList(dateString = null) {
         }, 50 * index);
       });
     });
-    
+
   } catch (error) {
     noticeBoardListContainer.innerHTML = '<p>데이터 로딩 실패</p>';
     gomnaruBoardListContainer.innerHTML = '<p>데이터 로딩 실패</p>';

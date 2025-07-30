@@ -1,12 +1,13 @@
+import json
 from django.core.management.base import BaseCommand
 from django.db import connection
 from notices.src.tasks import crawl_all_notices, setup_initial_data
+from notices.src.crawler import crawl_notices
 
 class Command(BaseCommand):
-    help = 'Setup initial data and crawl notices'
+    help = 'Crawl notices from Kongju University website'
 
     def handle(self, *args, **options):
-        # 데이터베이스 연결 및 테이블 확인
         self.stdout.write('Checking database connection...')
         try:
             with connection.cursor() as cursor:
@@ -39,6 +40,9 @@ class Command(BaseCommand):
             
             boards = NoticeBoard.objects.filter(is_active=True)
             total_new_notices = 0
+
+            # 크롤링 실행
+            notices = crawl_notices()
             
             for board in boards:
                 try:
@@ -53,6 +57,12 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f'Successfully crawled {total_new_notices} new notices')
             )
+
+            # 크롤링된 데이터를 JSON으로 내보내기
+            with open('crawled_data.json', 'w', encoding='utf-8') as f:
+                json.dump(notices, f, ensure_ascii=False, indent=4)
+            
+            self.stdout.write(self.style.SUCCESS('Successfully crawled and exported data to JSON'))
         except Exception as e:
             self.stdout.write(
                 self.style.ERROR(f'Failed to crawl notices: {e}')

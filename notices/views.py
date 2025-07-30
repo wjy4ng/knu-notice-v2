@@ -77,7 +77,7 @@ def get_notice_preview(req):
     notices = Notice.objects.filter(
         board=board,
         published_date=target_date
-    ).order_by('display_order')[:10]
+    ).order_by('display_order')[:5]
     
     notices_data = [
         {

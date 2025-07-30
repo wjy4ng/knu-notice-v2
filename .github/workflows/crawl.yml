@@ -29,58 +29,11 @@ jobs:
         pip install uv
         uv sync
         
-    - name: Setup database and run crawling
+    - name: Run crawling
       run: |
-        # SQLite 데이터베이스 파일 생성 및 마이그레이션
-        echo "Creating SQLite database..."
-        rm -f db.sqlite3
-        
-        # Django 설정 확인
-        echo "Testing Django configuration..."
-        uv run python -c "import django; django.setup(); print('Django setup successful')"
-        
-        # 마이그레이션 실행
-        echo "Running migrations..."
-        uv run python manage.py migrate --verbosity=2
-        
-        # 데이터베이스 테이블 확인
-        echo "Checking database tables..."
-        uv run python -c "
-        import sqlite3
-        conn = sqlite3.connect('db.sqlite3')
-        cursor = conn.cursor()
-        cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table';\")
-        tables = cursor.fetchall()
-        if not tables:
-          raise Exception('No tables found in the database!')
-        print('Available tables:', [table[0] for table in tables])
-        conn.close()
-        "
-        
-        # Django 모델 테스트
-        echo "Testing Django models..."
-        uv run python manage.py shell -c "
-        from notices.models import NoticeCategory, NoticeBoard, Notice
-        from datetime import date
-        print('Models imported successfully')
-
-        # 샘플 데이터 생성 (테스트용)
-        category = NoticeCategory.objects.create(name='Test Category')
-        board = NoticeBoard.objects.create(category=category, name='Test Board', url='http://example.com')
-        notice = Notice.objects.create(board=board, title='Test Notice', url='http://example.com', published_date=date.today())
-        
-        print('NoticeCategory count:', NoticeCategory.objects.count())
-        print('NoticeBoard count:', NoticeBoard.objects.count())
-        print('Notice count:', Notice.objects.count())
-        "
-        
         # 크롤링 실행
         echo "Starting crawling..."
         uv run python manage.py crawl_notices
-        
-        # 크롤링된 데이터를 JSON으로 내보내기
-        echo "Exporting data to JSON..."
-        uv run python manage.py export_data
         
     - name: Send data to Render.com
       if: always() # 이전 단계 실패해도 실행
