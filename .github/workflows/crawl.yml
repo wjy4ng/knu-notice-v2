@@ -4,11 +4,15 @@ on:
   schedule:
     # 매시간 0분에 실행 (UTC 기준)
     - cron: '0 * * * *'
+  push:
   workflow_dispatch: # 수동 실행 가능
 
 jobs:
   crawl:
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: "knu_notice.settings"
+      DEBUG: ${{ secrets.DEBUG }} # 환경 변수에서 DEBUG 값 가져오기
     
     steps:
     - name: Checkout code
@@ -25,18 +29,7 @@ jobs:
         pip install uv
         uv sync
         
-    - name: Install Chrome
-      run: |
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google.list
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-        
     - name: Setup database and run crawling
-      env:
-        GITHUB_ACTIONS: "true"
-        DEBUG: "True"
-        DJANGO_SETTINGS_MODULE: "knu_notice.settings"
       run: |
         # SQLite 데이터베이스 파일 생성 및 마이그레이션
         echo "Creating SQLite database..."
@@ -58,6 +51,8 @@ jobs:
         cursor = conn.cursor()
         cursor.execute(\"SELECT name FROM sqlite_master WHERE type='table';\")
         tables = cursor.fetchall()
+        if not tables:
+          raise Exception('No tables found in the database!')
         print('Available tables:', [table[0] for table in tables])
         conn.close()
         "
@@ -67,8 +62,15 @@ jobs:
         uv run python manage.py shell -c "
         from notices.models import NoticeCategory, NoticeBoard, Notice
         print('Models imported successfully')
+
+        # 샘플 데이터 생성 (테스트용)
+        category = NoticeCategory.objects.create(name='Test Category')
+        board = NoticeBoard.objects.create(category=category, name='Test Board', url='http://example.com')
+        notice = Notice.objects.create(board=board, title='Test Notice', url='http://example.com')
+        
         print('NoticeCategory count:', NoticeCategory.objects.count())
         print('NoticeBoard count:', NoticeBoard.objects.count())
+        print('Notice count:', Notice.objects.count())
         "
         
         # 크롤링 실행
@@ -80,12 +82,10 @@ jobs:
         uv run python manage.py export_data
         
     - name: Send data to Render.com
+      if: always() # 이전 단계 실패해도 실행
       env:
         RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
         CRAWL_AUTH_TOKEN: ${{ secrets.CRAWL_AUTH_TOKEN }}
-        GITHUB_ACTIONS: "true"
-        DEBUG: "True"
-        DJANGO_SETTINGS_MODULE: "knu_notice.settings"
       run: |
         # JSON 파일을 Render.com으로 전송
         if [ -f "crawled_data.json" ]; then
@@ -93,4 +93,6 @@ jobs:
             -H "Authorization: Bearer ${CRAWL_AUTH_TOKEN}" \
             -H "Content-Type: application/json" \
             -d @crawled_data.json
+        else
+          echo "crawled_data.json 파일이 없습니다."
         fi
