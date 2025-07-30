@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import logging
-from notices.src.tasks import CATEGORIES  # CATEGORIES import
+from notices.src.tasks import get_board_url  # tasks.py에서 URL 가져오는 함수 import
 
 logger = logging.getLogger(__name__)
 
@@ -16,18 +16,10 @@ def crawl_notices(board_name=None):
     
     # 특정 게시판만 크롤링할 경우
     if board_name:
-        # CATEGORIES에 정의된 게시판인지 확인
-        board_data = None
-        for category in CATEGORIES:
-            for board in category['boards']:
-                if board['name'] == board_name:
-                    board_data = board
-                    break
-            if board_data:
-                break
+        # tasks.py에서 게시판 URL 가져오기
+        board_url = get_board_url(board_name)
         
-        if board_data:
-            board_url = board_data['url']
+        if board_url:
             try:
                 response = requests.get(board_url)
                 response.raise_for_status()  # HTTP 오류 발생 시 예외 발생

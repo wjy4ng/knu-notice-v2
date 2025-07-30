@@ -6,6 +6,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def get_board_url(board_name):
+    """
+    게시판 이름으로 게시판 URL을 반환하는 함수
+    """
+    for category in CATEGORIES:
+        for board in category['boards']:
+            if board['name'] == board_name:
+                return board['url']
+    return None
+
 def setup_initial_data():
     """
     초기 데이터 설정: NoticeCategory, NoticeBoard
