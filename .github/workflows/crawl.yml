@@ -34,13 +34,20 @@ jobs:
         
     - name: Setup database and run crawling
       env:
-        DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
-        DEBUG: "False"
         GITHUB_ACTIONS: "true"
+        DEBUG: "True"
+        DJANGO_SETTINGS_MODULE: "knu_notice.settings"
       run: |
         # SQLite 데이터베이스 파일 생성 및 마이그레이션
         echo "Creating SQLite database..."
         rm -f db.sqlite3
+        
+        # Django 설정 확인
+        echo "Testing Django configuration..."
+        uv run python -c "import django; django.setup(); print('Django setup successful')"
+        
+        # 마이그레이션 실행
+        echo "Running migrations..."
         uv run python manage.py migrate --verbosity=2
         
         # 데이터베이스 테이블 확인
@@ -55,6 +62,15 @@ jobs:
         conn.close()
         "
         
+        # Django 모델 테스트
+        echo "Testing Django models..."
+        uv run python manage.py shell -c "
+        from notices.models import NoticeCategory, NoticeBoard, Notice
+        print('Models imported successfully')
+        print('NoticeCategory count:', NoticeCategory.objects.count())
+        print('NoticeBoard count:', NoticeBoard.objects.count())
+        "
+        
         # 크롤링 실행
         echo "Starting crawling..."
         uv run python manage.py crawl_notices
@@ -67,6 +83,9 @@ jobs:
       env:
         RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
         CRAWL_AUTH_TOKEN: ${{ secrets.CRAWL_AUTH_TOKEN }}
+        GITHUB_ACTIONS: "true"
+        DEBUG: "True"
+        DJANGO_SETTINGS_MODULE: "knu_notice.settings"
       run: |
         # JSON 파일을 Render.com으로 전송
         if [ -f "crawled_data.json" ]; then
