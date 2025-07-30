@@ -14,27 +14,15 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-local-development-key-only')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
-# GitHub Actions 환경에서는 디버그 모드로 실행
-if os.environ.get('GITHUB_ACTIONS'):
-    DEBUG = True
-    # GitHub Actions에서는 환경변수에서 가져오거나 임시 키 사용
-    if not os.environ.get('DJANGO_SECRET_KEY'):
-        SECRET_KEY = 'django-insecure-github-actions-temporary-key-do-not-use-in-production'
-
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,.onrender.com').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -46,7 +34,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_extensions',
     'notices',
 ]
 
@@ -73,6 +60,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request',
             ],
         },
     },
@@ -82,8 +70,6 @@ WSGI_APPLICATION = 'knu_notice.wsgi.application'
 
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -93,8 +79,6 @@ DATABASES = {
 
 
 # Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -112,29 +96,18 @@ AUTH_PASSWORD_VALIDATORS = [
 
 
 # Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+LANGUAGE_CODE = 'ko-kr'
+TIME_ZONE = 'Asia/Seoul'
 USE_I18N = True
-
 USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# WhiteNoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Logging configuration
@@ -158,6 +131,9 @@ LOGGING = {
         'require_debug_true': {
             '()': 'django.utils.log.RequireDebugTrue',
         },
+        'remove_sensitive_data': {
+            '()': 'utils.log_filters.RemoveSensitiveData',
+        }
     },
     'handlers': {
         'console': {
@@ -189,21 +165,30 @@ LOGGING = {
     },
 }
 
-# Production security settings
+# Production settings
 if not DEBUG:
-    SECURE_BROWSER_XSS_FILTER = True
-    SECURE_CONTENT_TYPE_NOSNIFF = True
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_REDIRECT_EXEMPT = []
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    # 추가 보안 헤더
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    # CSP 설정 (필요에 따라 조정)
+    # CONTENT_SECURITY_POLICY = {
+    #     'default-src': "'self'",
+    #     'script-src': ["'self'"],
+    #     'style-src': ["'self'"],
+    #     'img-src': ["'self'"],
+    #     'font-src': ["'self'"],
+    #     'frame-ancestors': ["'none'"],
+    # }
+    # Referrer Policy 설정
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
-    SECURE_CROSS_ORIGIN_OPENER_POLICY = 'same-origin'
+    # X-Frame-Options 설정
     X_FRAME_OPTIONS = 'DENY'
-    # CSRF 설정
     CSRF_COOKIE_HTTPONLY = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_EXPIRE_AT_BROWSER_CLOSE = True
