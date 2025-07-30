@@ -53,10 +53,11 @@ def crawl_all_notices():
     return total_new_notices
 
 def get_chrome_driver():
-    """Chrome WebDriver 설정 (Render.com 환경에서는 크롤링 비활성화)"""
+    """Chrome WebDriver 설정 (GitHub Actions 및 로컬 환경 지원)"""
     # 환경 확인
     import os
     is_render = os.getenv('RENDER') is not None
+    is_github_actions = os.getenv('GITHUB_ACTIONS') is not None
     
     if is_render:
         # Render.com 환경에서는 Chrome이 설치되지 않으므로 크롤링 비활성화
@@ -95,9 +96,15 @@ def get_chrome_driver():
     
     chrome_options.add_argument('--disable-features=VizDisplayCompositor')
     
-    # 로컬 환경 (macOS)
-    chrome_paths = [
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    # Chrome 바이너리 경로 설정
+    if is_github_actions:
+        # GitHub Actions 환경 (Ubuntu)
+        chrome_options.binary_location = '/usr/bin/google-chrome'
+        logger.info("Using Chrome binary for GitHub Actions: /usr/bin/google-chrome")
+    else:
+        # 로컬 환경 (macOS)
+        chrome_paths = [
+            '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         '/Applications/Chromium.app/Contents/MacOS/Chromium',
         '/usr/bin/google-chrome',
         '/usr/bin/chromium-browser'
