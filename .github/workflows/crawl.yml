@@ -49,7 +49,7 @@ jobs:
       run: |
         # JSON 파일을 Render.com으로 전송
         if [ -f "crawled_data.json" ]; then
-          curl -X POST "${RENDER_APP_URL}/api/import-data/" \
+          curl -X POST "${RENDER_APP_URL}/api/v1/import-data/" \
             -H "Authorization: Bearer ${CRAWL_AUTH_TOKEN}" \
             -H "Content-Type: application/json" \
             -d @crawled_data.json
