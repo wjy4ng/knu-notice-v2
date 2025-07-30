@@ -2,9 +2,6 @@
 # Exit on error
 set -o errexit
 
-# Note: Chrome installation removed due to Render.com limitations
-# Crawling will be handled by GitHub Actions instead
-
 # Install Python dependencies
 uv sync
 
@@ -23,9 +20,6 @@ try:
 except Exception as e:
     print(f'Initial data setup failed: {e}')
 "
-
-# Setup periodic tasks for Celery Beat
-uv run python manage.py setup_periodic_tasks
 
 # Create superuser for admin access
 uv run python manage.py shell -c "

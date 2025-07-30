@@ -32,15 +32,28 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable
         
-    - name: Run crawling
+    - name: Run crawling and export data
       env:
-        DATABASE_URL: ${{ secrets.DATABASE_URL }}
         DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
         DEBUG: "False"
         GITHUB_ACTIONS: "true"
       run: |
+        # 마이그레이션 및 크롤링 실행
+        uv run python manage.py migrate
         uv run python manage.py crawl_notices
         
-    - name: Update Render.com database
+        # 크롤링된 데이터를 JSON으로 내보내기
+        uv run python manage.py export_data
+        
+    - name: Send data to Render.com
+      env:
+        RENDER_APP_URL: ${{ secrets.RENDER_APP_URL }}
+        CRAWL_AUTH_TOKEN: ${{ secrets.CRAWL_AUTH_TOKEN }}
       run: |
-        echo "Crawling completed successfully"
+        # JSON 파일을 Render.com으로 전송
+        if [ -f "crawled_data.json" ]; then
+          curl -X POST "${RENDER_APP_URL}/api/import-data/" \
+            -H "Authorization: Bearer ${CRAWL_AUTH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d @crawled_data.json
+        fi

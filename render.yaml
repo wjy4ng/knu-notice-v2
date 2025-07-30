@@ -15,12 +15,4 @@ services:
         value: "true"
       - key: CRAWL_AUTH_TOKEN
         generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: knu-notice-db
-          property: connectionString
-
-databases:
-  - name: knu-notice-db
-    databaseName: knu_notice
-    user: knu_notice
+      # DATABASE_URL 제거 - SQLite 사용

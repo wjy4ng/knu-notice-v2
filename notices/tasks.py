@@ -54,53 +54,32 @@ def crawl_all_notices():
 
 def get_chrome_driver():
     """Chrome WebDriver 설정 (GitHub Actions 및 로컬 환경 지원)"""
-    # 환경 확인
     import os
-    is_render = os.getenv('RENDER') is not None
     is_github_actions = os.getenv('GITHUB_ACTIONS') is not None
-    
-    if is_render:
-        # Render.com 환경에서는 Chrome이 설치되지 않으므로 크롤링 비활성화
-        logger.warning("크롤링이 Render.com 환경에서 비활성화됨. GitHub Actions를 사용하세요.")
-        raise WebDriverException("크롤링은 GitHub Actions에서만 실행됩니다.")
     
     chrome_options = Options()
     
-    # 기본 보안 설정
+    # 기본 설정
     chrome_options.add_argument('--headless')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
     chrome_options.add_argument('--disable-gpu')
     chrome_options.add_argument('--window-size=1920,1080')
     
-    # 보안 강화 설정
+    # 최적화 설정
     chrome_options.add_argument('--disable-extensions')
     chrome_options.add_argument('--disable-plugins')
-    chrome_options.add_argument('--disable-images')  # 이미지 로딩 비활성화로 속도 향상
-    chrome_options.add_argument('--disable-javascript')  # JS 비활성화 (보안)
-    chrome_options.add_argument('--disable-background-timer-throttling')
-    chrome_options.add_argument('--disable-backgrounding-occluded-windows')
-    chrome_options.add_argument('--disable-renderer-backgrounding')
+    chrome_options.add_argument('--disable-images')
+    chrome_options.add_argument('--disable-javascript')
     
-    # 사용자 에이전트 (공주대학교 크롤링 명시)
+    # 사용자 에이전트
     chrome_options.add_argument('--user-agent=KNU-Notice-Crawler/1.0 (Educational Purpose)')
-    
-    is_debug = os.getenv('DEBUG', 'False').lower() == 'true'
-    
-    if is_debug:
-        # 로컬 개발환경에서만 SSL 무시
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--ignore-ssl-errors')
-        chrome_options.add_argument('--allow-running-insecure-content')
-        chrome_options.add_argument('--disable-web-security')
-    
-    chrome_options.add_argument('--disable-features=VizDisplayCompositor')
     
     # Chrome 바이너리 경로 설정
     if is_github_actions:
         # GitHub Actions 환경 (Ubuntu)
         chrome_options.binary_location = '/usr/bin/google-chrome'
-        logger.info("Using Chrome binary for GitHub Actions: /usr/bin/google-chrome")
+        logger.info("Using Chrome binary for GitHub Actions")
     else:
         # 로컬 환경 (macOS)
         chrome_paths = [
