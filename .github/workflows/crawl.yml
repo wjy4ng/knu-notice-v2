@@ -66,7 +66,7 @@ jobs:
         # 샘플 데이터 생성 (테스트용)
         category = NoticeCategory.objects.create(name='Test Category')
         board = NoticeBoard.objects.create(category=category, name='Test Board', url='http://example.com')
-        notice = Notice.objects.create(board=board, title='Test Notice', url='http://example.com')
+        notice = Notice.objects.create(board=board, title='Test Notice', url='http://example.com', published_date=date.today())
         
         print('NoticeCategory count:', NoticeCategory.objects.count())
         print('NoticeBoard count:', NoticeBoard.objects.count())
