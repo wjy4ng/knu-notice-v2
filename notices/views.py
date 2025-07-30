@@ -1,13 +1,7 @@
 from django.http import JsonResponse
 from datetime import datetime, timedelta
 from django.shortcuts import render
-from django.views.decorators.cache import cache_page
-from django.views.decorators.http import require_http_methods
-from django.core.paginator import Paginator
 from .models import NoticeCategory, Notice, NoticeBoard
-import logging
-
-logger = logging.getLogger(__name__)
 
 def index(req):
     today = datetime.now().strftime('%Y-%m-%d')
@@ -18,10 +12,8 @@ def index(req):
     }
     return render(req, 'index.html', context)
 
-@require_http_methods(["GET"])
-@cache_page(60 * 5)  # 5분 캐시
 def get_notice_counts(req):
-    """날짜별 모든 게시판의 공지사항 개수를 반환하는 API (최적화)"""
+    """날짜별 모든 게시판의 공지사항 개수를 반환"""
     date_str = req.GET.get('date')
     if not date_str:
         return JsonResponse({'error': '날짜가 필요합니다'}, status=400)
@@ -29,32 +21,15 @@ def get_notice_counts(req):
     try:
         target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
     except ValueError:
-        logger.warning(f"Invalid date format requested: {date_str}")
         return JsonResponse({'error': '잘못된 날짜 형식입니다.'}, status=400)
     
-    # 날짜 범위 제한 (과도한 과거/미래 날짜 방지)
-    max_past_days = 365  # 1년 전까지
-    max_future_days = 30  # 1달 후까지
-    today = datetime.now().date()
-    
-    if target_date < today - timedelta(days=max_past_days):
-        return JsonResponse({'error': '너무 과거의 날짜입니다'}, status=400)
-    if target_date > today + timedelta(days=max_future_days):
-        return JsonResponse({'error': '너무 미래의 날짜입니다'}, status=400)
-    
-    # 데이터베이스 쿼리 최적화: select_related 사용
     categories_data = []
-    categories = NoticeCategory.objects.prefetch_related(
-        'boards__notices'
-    ).all()
+    categories = NoticeCategory.objects.prefetch_related('boards__notices').all()
     
     for category in categories:
         boards_data = []
         for board in category.boards.filter(is_active=True):
-            notice_count = board.notices.filter(
-                published_date=target_date
-            ).count()
-
+            notice_count = board.notices.filter(published_date=target_date).count()
             boards_data.append({
                 'name': board.name,
                 'url': board.url,
@@ -67,9 +42,8 @@ def get_notice_counts(req):
         })
     return JsonResponse({'categories': categories_data})
 
-@require_http_methods(["GET"])
 def get_notice_preview(req):
-    """특정 게시판의 공지사항 미리보기를 반환하는 API"""
+    """특정 게시판의 공지사항 미리보기를 반환"""
     board_url = req.GET.get('url')
     date_str = req.GET.get('date')
     
@@ -82,11 +56,10 @@ def get_notice_preview(req):
     except (ValueError, NoticeBoard.DoesNotExist):
         return JsonResponse({'error': '잘못된 요청입니다'}, status=400)
     
-    # 해당 날짜의 공지사항 가져오기 (display_order로 정렬하여 실제 웹사이트 순서와 동일하게)
     notices = Notice.objects.filter(
         board=board,
         published_date=target_date
-    ).order_by('display_order')[:10]  # 최대 10개까지만
+    ).order_by('display_order')[:10]
     
     notices_data = [
         {
