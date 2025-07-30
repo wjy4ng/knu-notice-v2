@@ -1,7 +1,7 @@
 import json
 from django.core.management.base import BaseCommand
 from django.db import connection
-from notices.src.tasks import crawl_all_notices, setup_initial_data
+from notices.src.tasks import setup_initial_data, crawl_board_notices
 from notices.src.crawler import crawl_notices
 
 class Command(BaseCommand):
@@ -35,7 +35,6 @@ class Command(BaseCommand):
         self.stdout.write('Starting to crawl notices...')
         try:
             # Celery 없이 직접 함수 호출
-            from notices.src.tasks import crawl_board_notices
             from notices.models import NoticeBoard
             
             boards = NoticeBoard.objects.filter(is_active=True)
