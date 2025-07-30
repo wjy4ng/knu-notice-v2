@@ -48,33 +48,35 @@ def crawl_notices(board_name=None):
                     html = driver.page_source
                     soup = BeautifulSoup(html, 'html.parser')
                     
-                    # 게시물 목록 추출
-                    notice_list = soup.select('div.board-list > ul > li')
-                    
+                    # 실제 HTML 구조에 맞게 게시물 목록 추출
+                    notice_list = soup.select('table.board-table.horizon1 > tbody > tr')
+
                     for notice in notice_list:
                         try:
-                            # 중요 공지사항
-                            is_important = bool(notice.select_one('span.icon-important'))
-                            
-                            # 게시물 링크
-                            link = notice.select_one('a')
-                            url = base_url + link['href'] if link and 'href' in link.attrs else None
-                            
-                            # 게시물 제목
-                            title = link.text.strip() if link else None
-                            
-                            # 게시물 번호
-                            num = notice.select_one('td.num').text.strip() if notice.select_one('td.num') else None
-                            
-                            # 작성일
-                            date = notice.select_one('td.date').text.strip() if notice.select_one('td.date') else None
-                            
-                            # 조회수
-                            view_count = notice.select_one('td.view').text.strip() if notice.select_one('td.view') else None
-                            
+                            # 번호
+                            num = notice.select_one('td.td-num')
+                            num = num.text.strip() if num else None
+
+                            # 제목 및 링크
+                            subject_a = notice.select_one('td.td-subject a')
+                            title = subject_a.text.strip() if subject_a else None
+                            url = subject_a['href'] if subject_a and subject_a.has_attr('href') else None
+
                             # 작성자
-                            author = notice.select_one('td.author').text.strip() if notice.select_one('td.author') else None
-                            
+                            author = notice.select_one('td.td-write')
+                            author = author.text.strip() if author else None
+
+                            # 작성일
+                            date = notice.select_one('td.td-date')
+                            date = date.text.strip() if date else None
+
+                            # 조회수
+                            view_count = notice.select_one('td.td-access')
+                            view_count = view_count.text.strip() if view_count else None
+
+                            # 중요 공지사항 (예: 아이콘 등)
+                            is_important = bool(notice.select_one('span.icon-important'))
+
                             notice_data = {
                                 "title": title,
                                 "url": url,
@@ -87,9 +89,7 @@ def crawl_notices(board_name=None):
                                 "category_name": board_name,
                                 "crawled_at": datetime.now().isoformat()
                             }
-                            
                             all_notices.append(notice_data)
-                        
                         except Exception as e:
                             logger.error(f"Error processing notice: {e}")
                             continue
