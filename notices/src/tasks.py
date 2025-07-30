@@ -52,7 +52,7 @@ def crawl_board_notices(board):
                     title=notice['title'],
                     url=notice['url'],
                     published_date=notice['date'],
-                    display_order=notice['display_order'],
+                    display_order=notice.get('display_order', 0),
                 )
                 new_notices_count += 1
     except Exception as e:
