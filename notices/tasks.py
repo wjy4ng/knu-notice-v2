@@ -1,13 +1,3 @@
-# Celery 가져오기 (선택적)
-try:
-    from celery import shared_task
-    CELERY_AVAILABLE = True
-except ImportError:
-    CELERY_AVAILABLE = False
-    # Celery가 없을 때 사용할 더미 데코레이터
-    def shared_task(func):
-        return func
-
 from django.utils import timezone
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
@@ -25,7 +15,6 @@ from .models import NoticeCategory, NoticeBoard, Notice
 
 logger = logging.getLogger(__name__)
 
-@shared_task
 def crawl_all_notices():
     """Main task to crawl notices from all active boards"""
     from django.utils import timezone
@@ -214,7 +203,6 @@ def crawl_board_notices(board, days_back=7):
     
     return new_notices_count
 
-@shared_task
 def setup_initial_data():
     """Setup initial category and board data"""
     categories_data = [
