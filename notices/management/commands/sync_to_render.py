@@ -18,8 +18,8 @@ class Command(BaseCommand):
             data.append({
                 'title': notice.title,
                 'url': notice.url,
-                'date': notice.date.isoformat() if notice.date else None,
-                'category': notice.category.name,
+                'date': notice.published_date.isoformat() if notice.published_date else None,
+                'category': notice.board.category.name,
                 'board': notice.board.name,
                 'display_order': notice.display_order,
             })

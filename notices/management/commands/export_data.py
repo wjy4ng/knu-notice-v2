@@ -22,8 +22,8 @@ class Command(BaseCommand):
             data['notices'].append({
                 'title': notice.title,
                 'url': notice.url,
-                'date': notice.date.isoformat() if notice.date else None,
-                'category_name': notice.category.name,
+                'date': notice.published_date.isoformat() if notice.published_date else None,
+                'category_name': notice.board.category.name,
                 'board_name': notice.board.name,
                 'view_count': notice.view_count,
                 'is_important': notice.is_important,
