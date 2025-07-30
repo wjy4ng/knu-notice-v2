@@ -31,6 +31,10 @@ jobs:
         
     - name: Run crawling
       run: |
+        # 데이터베이스 마이그레이션 실행
+        echo "Running migrations..."
+        uv run python manage.py migrate
+
         # 크롤링 실행
         echo "Starting crawling..."
         uv run python manage.py crawl_notices
