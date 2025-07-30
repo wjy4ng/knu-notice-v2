@@ -28,7 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install uv
         uv sync
-        pip install requests certifi cryptography  # requests, certifi, cryptography 설치
+        pip install selenium webdriver-manager  # selenium 및 webdriver-manager 설치
         
     - name: Run crawling
       run: |
