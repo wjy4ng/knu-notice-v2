@@ -61,6 +61,7 @@ jobs:
         echo "Testing Django models..."
         uv run python manage.py shell -c "
         from notices.models import NoticeCategory, NoticeBoard, Notice
+        from datetime import date
         print('Models imported successfully')
 
         # 샘플 데이터 생성 (테스트용)
