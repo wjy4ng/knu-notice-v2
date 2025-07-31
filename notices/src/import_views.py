@@ -56,17 +56,19 @@ class ImportDataView(View):
                         logger.warning(f"게시판을 찾을 수 없음: {notice_data['board_name']}")
                         continue
 
-                    # 공지사항 저장
-                    notice = Notice.objects.create(
+                    # 이미 있으면 update, 없으면 create (upsert)
+                    notice_obj, created = Notice.objects.update_or_create(
                         board=board,
-                        title=notice_data['title'],
-                        url=notice_data['url'],
                         published_date=datetime.fromisoformat(notice_data['date']).date(),
-                        display_order=notice_data.get('display_order', 0),
-                        crawled_at=datetime.fromisoformat(notice_data['crawled_at'])
+                        title=notice_data['title'],
+                        defaults={
+                            'url': notice_data['url'],
+                            'display_order': notice_data.get('display_order', 0),
+                            'crawled_at': datetime.fromisoformat(notice_data['crawled_at'])
+                        }
                     )
                     saved_count += 1
-                    logger.info(f"공지사항 저장 성공: id={notice.id}, title={notice.title}, board={board.name}")
+                    logger.info(f"공지사항 {'생성' if created else '업데이트'}: id={notice_obj.id}, title={notice_obj.title}, board={board.name}")
                 except Exception as e:
                     logger.error(f"공지사항 처리 중 오류: {str(e)}, 데이터: {notice_data}")
                     continue
