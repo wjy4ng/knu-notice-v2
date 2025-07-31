@@ -44,8 +44,10 @@ class ImportDataView(View):
             for notice_data in notices_data:
                 try:
                     # 데이터 유효성 검사
-                    if not all(key in notice_data for key in ('title', 'url', 'date', 'board_name', 'crawled_at')):
-                        logger.warning(f"필수 필드 누락: {notice_data}")
+                    required_keys = ('title', 'url', 'date', 'board_name', 'crawled_at')
+                    if not all(key in notice_data for key in required_keys):
+                        missing = [k for k in required_keys if k not in notice_data]
+                        logger.warning(f"필수 필드 누락({missing}): {notice_data}")
                         continue
 
                     # 게시판 찾기
@@ -53,9 +55,9 @@ class ImportDataView(View):
                     if not board:
                         logger.warning(f"게시판을 찾을 수 없음: {notice_data['board_name']}")
                         continue
-                    
+
                     # 공지사항 저장
-                    Notice.objects.create(
+                    notice = Notice.objects.create(
                         board=board,
                         title=notice_data['title'],
                         url=notice_data['url'],
@@ -64,7 +66,8 @@ class ImportDataView(View):
                         crawled_at=datetime.fromisoformat(notice_data['crawled_at'])
                     )
                     saved_count += 1
-                except Exception:
+                    logger.info(f"공지사항 저장 성공: id={notice.id}, title={notice.title}, board={board.name}")
+                except Exception as e:
                     logger.error(f"공지사항 처리 중 오류: {str(e)}, 데이터: {notice_data}")
                     continue
             
