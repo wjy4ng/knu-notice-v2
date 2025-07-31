@@ -66,9 +66,18 @@ def crawl_notices(board_name=None):
                             author = notice.select_one('td.td-write')
                             author = author.text.strip() if author else None
 
-                            # 작성일
+
+                            # 작성일 (YYYY-MM-DD로 변환)
                             date = notice.select_one('td.td-date')
                             date = date.text.strip() if date else None
+                            if date:
+                                if '.' in date:
+                                    try:
+                                        from datetime import datetime as dt
+                                        date_obj = dt.strptime(date, '%Y.%m.%d')
+                                        date = date_obj.strftime('%Y-%m-%d')
+                                    except Exception as e:
+                                        logger.warning(f"날짜 변환 실패: {date} ({e})")
 
                             # 조회수
                             view_count = notice.select_one('td.td-access')
