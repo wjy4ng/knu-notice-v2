@@ -1,3 +1,18 @@
+from django.views.decorators.csrf import csrf_exempt
+@csrf_exempt
+def debug_notices(req):
+    """DB에 저장된 Notice, NoticeBoard, NoticeCategory의 개수와 일부 샘플 데이터를 반환"""
+    from .models import Notice, NoticeBoard, NoticeCategory
+    data = {
+        'notice_count': Notice.objects.count(),
+        'notice_sample': list(Notice.objects.all().order_by('-id').values('id','title','published_date','board__name')[:5]),
+        'board_count': NoticeBoard.objects.count(),
+        'board_sample': list(NoticeBoard.objects.all().order_by('-id').values('id','name','url')[:5]),
+        'category_count': NoticeCategory.objects.count(),
+        'category_sample': list(NoticeCategory.objects.all().order_by('-id').values('id','name')[:5]),
+    }
+    logger.info(f"[DEBUG-NOTICES] {data}")
+    return JsonResponse(data)
 from django.http import JsonResponse, HttpResponseNotAllowed
 from datetime import datetime, timedelta
 from django.shortcuts import render

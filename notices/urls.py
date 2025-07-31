@@ -9,6 +9,7 @@ api_v1_patterns = [
     path('notice-counts/', views.get_notice_counts, name='notice_counts'),
     path('notice-preview/', views.get_notice_preview, name='notice_preview'),
     path('import-data/', ImportDataView.as_view(), name='import_data'),
+    path('debug-notices/', views.debug_notices, name='debug_notices'),
 ]
 
 # 메인 URL 패턴들
