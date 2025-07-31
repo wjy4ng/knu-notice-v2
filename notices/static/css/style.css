@@ -129,6 +129,10 @@ h1 {
   margin-top: 0;
   font-size: 1.2rem;
   color: #f0f0f0 !important;
+}
+#preview-area h3, #preview-area ul, #preview-area ul li, #preview-area li {
+  color: #f0f0f0 !important;
+}
   border-bottom: 1px solid #555;
   padding-bottom: 8px;
   margin-bottom: 8px;

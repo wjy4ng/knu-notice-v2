@@ -91,10 +91,10 @@ def get_notice_preview(req):
     
     notices = Notice.objects.filter(
         board=board,
-        published_date=target_date,
-        is_important=False
-    ).order_by('display_order')[:5]
+        published_date=target_date
+    ).order_by('display_order')
 
+    # 고정글 제외 후 최대 5개만 반환
     notices_data = [
         {
             'title': notice.title,
@@ -102,8 +102,8 @@ def get_notice_preview(req):
             'author': notice.author,
             'view_count': notice.view_count,
             'is_important': notice.is_important
-        } for notice in notices
-    ]
+        } for notice in notices if not notice.is_important
+    ][:5]
     
     return JsonResponse({
         'board_name': board.name,
