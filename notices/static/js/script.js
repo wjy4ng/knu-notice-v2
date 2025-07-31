@@ -84,7 +84,7 @@ document.addEventListener('mouseover', async (event) => {
       // 미리보기에 새 공지 제목 삽입
       if (data.notices && data.notices.length > 0) {
         data.notices.forEach(notice => {
-          previewContent += `<li><a href="${notice.url}" target="_blank">${notice.title}</a></li>`;
+          previewContent += `<li>${notice.title}</li>`;
         });
       }
       previewContent += `</ul>`;
@@ -98,12 +98,15 @@ document.addEventListener('mouseover', async (event) => {
 
 // 마우스가 게시판 목록 밖으로 이동했을 때
 document.addEventListener('mouseout', (event) => {
-  const target = event.target.closest('.notice-item');
-  if (!target) return; // 게시판 목록 창 근처가 아닌 경우 종료
+  // 미리보기 영역 또는 notice-item에서 벗어났을 때만 미리보기 숨김
+  const fromNoticeItem = event.target.closest('.notice-item');
+  const toPreviewArea = event.relatedTarget && event.relatedTarget.closest && event.relatedTarget.closest('#preview-area');
+  if (!fromNoticeItem && !toPreviewArea) return;
 
-  clearTimeout(showPreviewTimer); // 미리보기 표시 타이머 취소
+  // 만약 마우스가 미리보기 영역 내부로 이동하면 숨기지 않음
+  if (toPreviewArea) return;
 
-  // 미리보기 숨김 타이머 설정
+  clearTimeout(showPreviewTimer);
   hidePreviewTimer = setTimeout(() => {
     previewArea.style.display = 'none';
     previewArea.dataset.url = '';

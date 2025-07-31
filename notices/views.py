@@ -54,7 +54,7 @@ def get_notice_counts(req):
     for category in categories:
         boards_data = []
         for board in category.boards.filter(is_active=True):
-            notice_count = board.notices.filter(published_date=target_date).count()
+            notice_count = board.notices.filter(published_date=target_date, is_important=False).count()
             boards_data.append({
                 'name': board.name,
                 'url': board.url,
@@ -91,9 +91,10 @@ def get_notice_preview(req):
     
     notices = Notice.objects.filter(
         board=board,
-        published_date=target_date
+        published_date=target_date,
+        is_important=False
     ).order_by('display_order')[:5]
-    
+
     notices_data = [
         {
             'title': notice.title,
