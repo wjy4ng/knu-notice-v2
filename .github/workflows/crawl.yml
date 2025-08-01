@@ -1,8 +1,8 @@
 
 name: Periodic Crawling
 on:
-  schedule:
-    - cron: '0 * * * *' # 매시간 0분에 실행 (UTC)
+  # schedule:
+  #   - cron: '0 * * * *' # 매시간 0분에 실행 (UTC)
   push:
     branches:
       - main
